@@ -1,0 +1,7 @@
+[package]
+name = "iso8601-rs"
+version = "0.1.0"
+authors = ["Robin Stumm <serverkorken@gmail.com>"]
+
+[dependencies]
+nom = "~4.0.0"
