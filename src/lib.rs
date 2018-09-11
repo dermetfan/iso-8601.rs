@@ -1,24 +1,29 @@
 mod parse;
+pub mod chrono;
 
 #[macro_use] extern crate nom;
 
+pub use parse::*;
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Date {
-    year: i32,
-    month: u8,
-    day: u8
+    pub year: i32,
+    pub month: u8,
+    pub day: u8
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Time {
-    hour: u8,
-    minute: u8,
-    second: u8,
-    tz_offset: i32
+    pub hour: u8,
+    pub minute: u8,
+    pub second: u8,
+    // TODO millisecs / nanosecs
+    /// seconds
+    pub tz_offset: i32
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct DateTime {
-    date: Date,
-    time: Time
+    pub date: Date,
+    pub time: Time
 }

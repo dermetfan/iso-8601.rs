@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::ops::{AddAssign, MulAssign};
 use {nom, Date, Time, DateTime};
 
@@ -125,7 +123,7 @@ mod tests {
 
         assert_eq!(positive_year(b"2018"), Ok((&[][..], 2018)));
     }
-    
+
     #[test]
     fn parse_year() {
         use super::year;
