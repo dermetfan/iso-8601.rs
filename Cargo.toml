@@ -1,5 +1,5 @@
 [package]
-name = "iso8601-rs"
+name = "parse-iso8601"
 version = "0.1.0"
 authors = ["Robin Stumm <serverkorken@gmail.com>"]
 
