@@ -121,7 +121,10 @@ named!(pub time <&[u8], Time>, do_parse!(
     ))) >>
     nanos: opt!(complete!(do_parse!(
         one_of!(".,") >>
-        sec_frac: take_rest!() >>
+        sec_frac: alt_complete!(
+            take_while1!(nom::is_digit) |
+            take_rest!()
+        ) >>
         (sec_frac_buf_to_nanos(sec_frac))
     ))) >>
     tz_offset: opt!(complete!(timezone)) >>
@@ -390,6 +393,15 @@ mod tests {
                 minute: 43,
                 second: 52,
                 nanos: 0,
+                tz_offset: 0
+            }
+        )));
+        assert_eq!(time(b"16:43:52.1Z"), Ok((
+            &[][..], Time {
+                hour: 16,
+                minute: 43,
+                second: 52,
+                nanos: 100_000_000,
                 tz_offset: 0
             }
         )));
