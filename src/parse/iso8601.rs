@@ -52,7 +52,7 @@ named!(month <&[u8], u8>, verify!(
         take_while_m_n!(2, 2, nom::is_digit),
         buf_to_int
     ),
-    |month| month <= 12
+    |month| month >= 1 && month <= 12
 ));
 
 /// Not verified since number of days
@@ -62,14 +62,28 @@ named!(day <&[u8], u8>, map!(
     buf_to_int
 ));
 
-// TODO verify!() date validity
-named!(pub date <&[u8], Date>, do_parse!(
-    year: year >>
-    opt!(char!('-')) >>
-    month: month >>
-    opt!(char!('-')) >>
-    day: day >>
-    (Date { year, month, day })
+named!(pub date <&[u8], Date>, verify!(
+    do_parse!(
+        year: year >>
+        opt!(char!('-')) >>
+        month: month >>
+        opt!(char!('-')) >>
+        day: day >>
+        (Date { year, month, day })
+    ),
+    |date: Date| match date.month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => date.day <= 31,
+        4 | 6 | 9 | 11              => date.day <= 30,
+        2 => {
+            fn is_leap(year: i32) -> bool {
+                let factor = |x| year % x == 0;
+                factor(4) && (!factor(100) || factor(400))
+            }
+
+            date.day <= if is_leap(date.year) { 29 } else { 28 }
+        }
+        _ => unreachable!()
+    }
 ));
 
 named!(hour <&[u8], u8>, verify!(
@@ -96,7 +110,6 @@ named!(second <&[u8], u8>, verify!(
     |second| second <= 60
 ));
 
-// TODO verify!() time validity
 named!(pub time <&[u8], Time>, do_parse!(
     hour: hour >>
     opt!(char!(':')) >>
@@ -187,6 +200,9 @@ mod tests {
         assert_eq!(month(b"13"), Err(
             Error(Code(&b"13"[..], Verify))
         ));
+        assert_eq!(month(b"00"), Err(
+            Error(Code(&b"00"[..], Verify))
+        ));
     }
 
     #[test]
@@ -218,6 +234,16 @@ mod tests {
             assert_eq!(date(b"-0333-06-11"), Ok((&[][..], value.clone())));
             assert_eq!(date(b"-03330611"),   Ok((&[][..], value        )));
         }
+        assert_eq!(date(b"2018-02-29"), Err(
+            Error(Code(&b"2018-02-29"[..], Verify))
+        ));
+        assert_eq!(date(b"2016-02-29"), Ok((
+            &[][..], Date {
+                year: 2016,
+                month: 2,
+                day: 29
+            }
+        )));
     }
 
     #[test]

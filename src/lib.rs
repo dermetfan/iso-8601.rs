@@ -5,14 +5,14 @@ pub mod chrono;
 
 pub use parse::*;
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Date {
     pub year: i32,
     pub month: u8,
     pub day: u8
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Time {
     pub hour: u8,
     pub minute: u8,
@@ -22,7 +22,7 @@ pub struct Time {
     pub tz_offset: i32
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct DateTime {
     pub date: Date,
     pub time: Time
