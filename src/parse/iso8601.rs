@@ -120,7 +120,7 @@ named!(pub time <&[u8], Time>, do_parse!(
         (second)
     ))) >>
     nanos: opt!(complete!(do_parse!(
-        char!('.') >>
+        one_of!(".,") >>
         sec_frac: take_rest!() >>
         (sec_frac_buf_to_nanos(sec_frac))
     ))) >>
@@ -324,7 +324,7 @@ mod tests {
                 ..value
             }
         )));
-        assert_eq!(time(b"16:43:52.01"), Ok((
+        assert_eq!(time(b"16:43:52,01"), Ok((
             &[][..], Time {
                 nanos: 10_000_000,
                 ..value
@@ -336,7 +336,7 @@ mod tests {
                 ..value
             }
         )));
-        assert_eq!(time(b"16:43:52.0001"), Ok((
+        assert_eq!(time(b"16:43:52,0001"), Ok((
             &[][..], Time {
                 nanos: 100_000,
                 ..value
@@ -348,7 +348,7 @@ mod tests {
                 ..value
             }
         )));
-        assert_eq!(time(b"16:43:52.000001"), Ok((
+        assert_eq!(time(b"16:43:52,000001"), Ok((
             &[][..], Time {
                 nanos: 1_000,
                 ..value
@@ -360,7 +360,7 @@ mod tests {
                 ..value
             }
         )));
-        assert_eq!(time(b"16:43:52.00000001"), Ok((
+        assert_eq!(time(b"16:43:52,00000001"), Ok((
             &[][..], Time {
                 nanos: 10,
                 ..value
