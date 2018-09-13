@@ -13,8 +13,17 @@ use self::chrono::{
 impl From<::DateTime> for DateTime<FixedOffset> {
     fn from(dt: ::DateTime) -> Self {
         FixedOffset::east(dt.time.tz_offset)
-            .ymd(dt.date.year, dt.date.month.into(), dt.date.day.into())
-            .and_hms(dt.time.hour.into(), dt.time.minute.into(), dt.time.second.into())
+            .ymd(
+                dt.date.year,
+                dt.date.month.into(),
+                dt.date.day.into()
+            )
+            .and_hms_nano(
+                dt.time.hour.into(),
+                dt.time.minute.into(),
+                dt.time.second.into(),
+                dt.time.nanos
+            )
     }
 }
 

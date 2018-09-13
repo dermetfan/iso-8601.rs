@@ -17,7 +17,7 @@ pub struct Time {
     pub hour: u8,
     pub minute: u8,
     pub second: u8,
-    // TODO millisecs / nanosecs
+    pub nanos: u32,
     /// seconds
     pub tz_offset: i32
 }

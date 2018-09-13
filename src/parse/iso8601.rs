@@ -11,6 +11,25 @@ where T: AddAssign + MulAssign + From<u8> {
     sum
 }
 
+/// Panics on greater than nanosecond precision (length > 9).
+fn sec_frac_buf_to_nanos(buf: &[u8]) -> u32 {
+    let mut nanos = 0;
+    for (i, digit) in buf.iter().enumerate() {
+        let digit = digit - b'0';
+        nanos += digit as u32 * 10u32.pow(8 - i as u32);
+    }
+    nanos
+}
+
+/// Takes the rest of the input until EOF.
+macro_rules! take_rest(
+    ($i:expr,) => ({
+        use nom::InputLength;
+
+        take!($i, $i.input_len())
+    })
+);
+
 named!(sign <&[u8], i32>, alt!(
     char!('-') => { |_| -1 } |
     char!('+') => { |_|  1 }
@@ -87,10 +106,16 @@ named!(pub time <&[u8], Time>, do_parse!(
         second: second >>
         (second)
     ))) >>
+    nanos: opt!(complete!(do_parse!(
+        char!('.') >>
+        sec_frac: take_rest!() >>
+        (sec_frac_buf_to_nanos(sec_frac))
+    ))) >>
     tz_offset: opt!(complete!(timezone)) >>
     (Time {
         hour, minute,
         second: seconds.unwrap_or(0),
+        nanos: nanos.unwrap_or(0),
         tz_offset: tz_offset.unwrap_or(0)
     })
 ));
@@ -237,6 +262,7 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 52,
+                nanos: 0,
                 tz_offset: 0
             };
             assert_eq!(time(b"16:43:52"), Ok((&[][..], value.clone())));
@@ -247,11 +273,85 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 0,
+                nanos: 0,
                 tz_offset: 0
             };
             assert_eq!(time(b"16:43"), Ok((&[][..], value.clone())));
             assert_eq!(time(b"1643"),  Ok((&[][..], value        )));
         }
+    }
+
+    #[test]
+    fn parse_time_precision() {
+        use super::time;
+
+        let value = Time {
+            hour: 16,
+            minute: 43,
+            second: 52,
+            nanos: 0,
+            tz_offset: 0
+        };
+        assert_eq!(time(b"16:43:52.1"), Ok((
+            &[][..], Time {
+                nanos: 100_000_000,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.01"), Ok((
+            &[][..], Time {
+                nanos: 10_000_000,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.001"), Ok((
+            &[][..], Time {
+                nanos: 1_000_000,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.0001"), Ok((
+            &[][..], Time {
+                nanos: 100_000,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.00001"), Ok((
+            &[][..], Time {
+                nanos: 10_000,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.000001"), Ok((
+            &[][..], Time {
+                nanos: 1_000,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.0000001"), Ok((
+            &[][..], Time {
+                nanos: 100,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.00000001"), Ok((
+            &[][..], Time {
+                nanos: 10,
+                ..value
+            }
+        )));
+        assert_eq!(time(b"16:43:52.000000001"), Ok((
+            &[][..], Time {
+                nanos: 1,
+                ..value
+            }
+        )));
+    }
+
+    #[test]
+    #[should_panic]
+    fn parse_time_precision_panic() {
+        super::time(b"16:43:52.0000000001").unwrap();
     }
 
     #[test]
@@ -263,6 +363,7 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 52,
+                nanos: 0,
                 tz_offset: 0
             }
         )));
@@ -271,6 +372,7 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 52,
+                nanos: 0,
                 tz_offset: 5 * 3600
             };
             assert_eq!(time(b"16:43:52+05"),   Ok((&[][..], value.clone())));
@@ -281,6 +383,7 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 0,
+                nanos: 0,
                 tz_offset: -(5 * 3600 + 30 * 60)
             }
         )));
@@ -300,6 +403,7 @@ mod tests {
                 hour: 16,
                 minute: 47,
                 second: 22,
+                nanos: 0,
                 tz_offset: 5 * 3600
             }
         };
