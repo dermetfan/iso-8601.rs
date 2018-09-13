@@ -12,10 +12,11 @@ where T: AddAssign + MulAssign + From<u8> {
 }
 
 named!(sign <&[u8], i32>, alt!(
-    tag!("-") => { |_| -1 } |
-    tag!("+") => { |_|  1 }
+    char!('-') => { |_| -1 } |
+    char!('+') => { |_|  1 }
 ));
 
+// TODO support expanded year
 named!(positive_year <&[u8], u32>, map!(
     take_while_m_n!(4, 4, nom::is_digit),
     buf_to_int
@@ -27,74 +28,93 @@ named!(year <&[u8], i32>, do_parse!(
     (sign.unwrap_or(1) * year as i32)
 ));
 
-named!(month <&[u8], u8>, map!(
-    take_while_m_n!(2, 2, nom::is_digit),
-    buf_to_int
+named!(month <&[u8], u8>, verify!(
+    map!(
+        take_while_m_n!(2, 2, nom::is_digit),
+        buf_to_int
+    ),
+    |month| month <= 12
 ));
+
+/// Not verified since number of days
+/// in a month depends on the month.
 named!(day <&[u8], u8>, map!(
     take_while_m_n!(2, 2, nom::is_digit),
     buf_to_int
 ));
 
+// TODO verify!() date validity
 named!(pub date <&[u8], Date>, do_parse!(
     year: year >>
-    opt!(tag!("-")) >>
+    opt!(char!('-')) >>
     month: month >>
-    opt!(tag!("-")) >>
+    opt!(char!('-')) >>
     day: day >>
     (Date { year, month, day })
 ));
 
-named!(hour <&[u8], u8>, map!(
-    take_while_m_n!(2, 2, nom::is_digit),
-    buf_to_int
-));
-named!(minute <&[u8], u8>, map!(
-    take_while_m_n!(2, 2, nom::is_digit),
-    buf_to_int
-));
-named!(second <&[u8], u8>, map!(
-    take_while_m_n!(2, 2, nom::is_digit),
-    buf_to_int
+named!(hour <&[u8], u8>, verify!(
+    map!(
+        take_while_m_n!(2, 2, nom::is_digit),
+        buf_to_int
+    ),
+    |hour| hour <= 24
 ));
 
+named!(minute <&[u8], u8>, verify!(
+    map!(
+        take_while_m_n!(2, 2, nom::is_digit),
+        buf_to_int
+    ),
+    |minute| minute <= 60
+));
+
+named!(second <&[u8], u8>, verify!(
+    map!(
+        take_while_m_n!(2, 2, nom::is_digit),
+        buf_to_int
+    ),
+    |second| second <= 60
+));
+
+// TODO verify!() time validity
 named!(pub time <&[u8], Time>, do_parse!(
     hour: hour >>
-    opt!(tag!(":")) >>
+    opt!(char!(':')) >>
     minute: minute >>
-    second: opt!(complete!(do_parse!(
-        opt!(tag!(":")) >>
+    seconds: opt!(complete!(do_parse!(
+        opt!(char!(':')) >>
         second: second >>
         (second)
     ))) >>
     tz_offset: opt!(complete!(timezone)) >>
     (Time {
         hour, minute,
-        second: second.unwrap_or(0),
+        second: seconds.unwrap_or(0),
         tz_offset: tz_offset.unwrap_or(0)
     })
 ));
 
 named!(timezone_utc <&[u8], i32>, map!(
-    tag!("Z"), |_| 0
+    char!('Z'), |_| 0
 ));
 
-named!(timezone_hour <&[u8], i32>, do_parse!(
+named!(timezone_fixed <&[u8], i32>, do_parse!(
     sign: sign >>
     hour: hour >>
     minute: opt!(complete!(do_parse!(
-        opt!(tag!(":")) >>
+        opt!(char!(':')) >>
         minute: minute >>
         (minute)
     ))) >>
     (sign * (hour as i32 * 3600 + minute.unwrap_or(0) as i32 * 60))
 ));
 
-named!(timezone <&[u8], i32>, alt!(timezone_utc | timezone_hour));
+named!(timezone <&[u8], i32>, alt!(timezone_utc | timezone_fixed));
 
 named!(pub datetime <&[u8], DateTime>, do_parse!(
     date: date >>
-    tag!("T") >>
+    char!('T') >>
     time: time >>
     (DateTime { date, time })
 ));
@@ -103,7 +123,7 @@ named!(pub datetime <&[u8], DateTime>, do_parse!(
 mod tests {
     use nom::Context::Code;
     use nom::Err::{Error, Incomplete};
-    use nom::ErrorKind::Alt;
+    use nom::ErrorKind::{Alt, Verify};
     use nom::Needed::Size;
     use {Date, Time, DateTime};
 
@@ -137,7 +157,11 @@ mod tests {
     fn parse_month() {
         use super::month;
 
-        assert_eq!(month(b"06"), Ok((&[][..], 6)));
+        assert_eq!(month(b"06"), Ok((&[][..],  6)));
+        assert_eq!(month(b"12"), Ok((&[][..], 12)));
+        assert_eq!(month(b"13"), Err(
+            Error(Code(&b"13"[..], Verify))
+        ));
     }
 
     #[test]
@@ -157,12 +181,8 @@ mod tests {
                 month: 7,
                 day: 16
             };
-            assert_eq!(date(b"2015-07-16"), Ok((
-                &[][..], value.clone()
-            )));
-            assert_eq!(date(b"20150716"), Ok((
-                &[][..], value
-            )));
+            assert_eq!(date(b"2015-07-16"), Ok((&[][..], value.clone())));
+            assert_eq!(date(b"20150716"),   Ok((&[][..], value        )));
         }
         {
             let value = Date {
@@ -170,13 +190,42 @@ mod tests {
                 month: 6,
                 day: 11
             };
-            assert_eq!(date(b"-0333-06-11"), Ok((
-                &[][..], value.clone()
-            )));
-            assert_eq!(date(b"-03330611"), Ok((
-                &[][..], value
-            )));
+            assert_eq!(date(b"-0333-06-11"), Ok((&[][..], value.clone())));
+            assert_eq!(date(b"-03330611"),   Ok((&[][..], value        )));
         }
+    }
+
+    #[test]
+    fn parse_hour() {
+        use super::hour;
+
+        assert_eq!(hour(b"02"), Ok((&[][..],  2)));
+        assert_eq!(hour(b"24"), Ok((&[][..], 24)));
+        assert_eq!(hour(b"25"), Err(
+            Error(Code(&b"25"[..], Verify))
+        ));
+    }
+
+    #[test]
+    fn parse_minute() {
+        use super::minute;
+
+        assert_eq!(minute(b"02"), Ok((&[][..],  2)));
+        assert_eq!(minute(b"60"), Ok((&[][..], 60)));
+        assert_eq!(minute(b"61"), Err(
+            Error(Code(&b"61"[..], Verify))
+        ));
+    }
+
+    #[test]
+    fn parse_second() {
+        use super::second;
+
+        assert_eq!(second(b"02"), Ok((&[][..],  2)));
+        assert_eq!(second(b"60"), Ok((&[][..], 60)));
+        assert_eq!(second(b"61"), Err(
+            Error(Code(&b"61"[..], Verify))
+        ));
     }
 
     #[test]
@@ -190,12 +239,8 @@ mod tests {
                 second: 52,
                 tz_offset: 0
             };
-            assert_eq!(time(b"16:43:52"), Ok((
-                &[][..], value.clone()
-            )));
-            assert_eq!(time(b"164352"), Ok((
-                &[][..], value
-            )));
+            assert_eq!(time(b"16:43:52"), Ok((&[][..], value.clone())));
+            assert_eq!(time(b"164352"),   Ok((&[][..], value        )));
         }
         {
             let value = Time {
@@ -204,12 +249,8 @@ mod tests {
                 second: 0,
                 tz_offset: 0
             };
-            assert_eq!(time(b"16:43"), Ok((
-                &[][..], value.clone()
-            )));
-            assert_eq!(time(b"1643"), Ok((
-                &[][..], value
-            )));
+            assert_eq!(time(b"16:43"), Ok((&[][..], value.clone())));
+            assert_eq!(time(b"1643"),  Ok((&[][..], value        )));
         }
     }
 
@@ -232,12 +273,8 @@ mod tests {
                 second: 52,
                 tz_offset: 5 * 3600
             };
-            assert_eq!(time(b"16:43:52+05"), Ok((
-                &[][..], value.clone()
-            )));
-            assert_eq!(time(b"16:43:52+0500"), Ok((
-                &[][..], value
-            )));
+            assert_eq!(time(b"16:43:52+05"),   Ok((&[][..], value.clone())));
+            assert_eq!(time(b"16:43:52+0500"), Ok((&[][..], value        )));
         }
         assert_eq!(time(b"16:43-05:30"), Ok((
             &[][..], Time {
@@ -266,11 +303,7 @@ mod tests {
                 tz_offset: 5 * 3600
             }
         };
-        assert_eq!(datetime(b"2007-08-31T16:47:22+05:00"), Ok((
-            &[][..], value.clone()
-        )));
-        assert_eq!(datetime(b"20070831T164722+05"), Ok((
-            &[][..], value
-        )));
+        assert_eq!(datetime(b"2007-08-31T16:47:22+05:00"), Ok((&[][..], value.clone())));
+        assert_eq!(datetime(b"20070831T164722+05"),        Ok((&[][..], value        )));
     }
 }
