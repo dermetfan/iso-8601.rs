@@ -99,7 +99,7 @@ named!(minute <&[u8], u8>, verify!(
         take_while_m_n!(2, 2, nom::is_digit),
         buf_to_int
     ),
-    |minute| minute <= 60
+    |minute| minute <= 59
 ));
 
 named!(second <&[u8], u8>, verify!(
@@ -262,9 +262,9 @@ mod tests {
         use super::minute;
 
         assert_eq!(minute(b"02"), Ok((&[][..],  2)));
-        assert_eq!(minute(b"60"), Ok((&[][..], 60)));
-        assert_eq!(minute(b"61"), Err(
-            Error(Code(&b"61"[..], Verify))
+        assert_eq!(minute(b"59"), Ok((&[][..], 59)));
+        assert_eq!(minute(b"60"), Err(
+            Error(Code(&b"60"[..], Verify))
         ));
     }
 
