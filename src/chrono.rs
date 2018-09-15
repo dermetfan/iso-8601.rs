@@ -12,9 +12,9 @@ use self::chrono::{
 
 impl From<::DateTime> for DateTime<FixedOffset> {
     fn from(dt: ::DateTime) -> Self {
-        FixedOffset::east(dt.time.tz_offset)
+        FixedOffset::east((dt.time.tz_offset * 60) as i32)
             .ymd(
-                dt.date.year,
+                dt.date.year as i32,
                 dt.date.month.into(),
                 dt.date.day.into()
             )
@@ -55,13 +55,13 @@ pub mod serde {
     };
 
     #[allow(non_snake_case)]
-    pub fn deserialize_iso8601_DateTime<'de, D, Tz>(de: D) -> Result<DateTime<Tz>, D::Error>
+    pub fn deserialize_DateTime<'de, D, Tz>(de: D) -> Result<DateTime<Tz>, D::Error>
     where
     	D: Deserializer<'de>,
     	Tz: TimeZone,
     	DateTime<Tz>: From<::DateTime>
     {
-        Ok(::iso8601::datetime(String::deserialize(de)?.as_bytes())
+        Ok(::parse::datetime(String::deserialize(de)?.as_bytes())
             .map_err(serde::de::Error::custom)?.1
             .into()
         )
