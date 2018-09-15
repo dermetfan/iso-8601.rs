@@ -33,21 +33,21 @@ macro_rules! take_rest(
     })
 );
 
-named!(sign <&[u8], i32>, alt!(
+named!(sign <&[u8], i8>, alt!(
     one_of!("-\u{2212}\u{2010}") => { |_| -1 } |
     char!('+')                   => { |_|  1 }
 ));
 
 // TODO support expanded year
-named!(positive_year <&[u8], u32>, map!(
+named!(positive_year <&[u8], u16>, map!(
     take_while_m_n!(4, 4, nom::is_digit),
     buf_to_int
 ));
 
-named!(year <&[u8], i32>, do_parse!(
+named!(year <&[u8], i16>, do_parse!(
     sign: opt!(sign) >>
     year: positive_year >>
-    (sign.unwrap_or(1) * year as i32)
+    (sign.unwrap_or(1) as i16 * year as i16)
 ));
 
 named!(month <&[u8], u8>, verify!(
@@ -78,7 +78,7 @@ named!(pub date <&[u8], Date>, verify!(
         1 | 3 | 5 | 7 | 8 | 10 | 12 => date.day <= 31,
         4 | 6 | 9 | 11              => date.day <= 30,
         2 => {
-            fn is_leap(year: i32) -> bool {
+            fn is_leap(year: i16) -> bool {
                 let factor = |x| year % x == 0;
                 factor(4) && (!factor(100) || factor(400))
             }
@@ -184,22 +184,22 @@ named!(pub time <&[u8], Time>, do_parse!(
     })
 ));
 
-named!(timezone_utc <&[u8], i32>, map!(
+named!(timezone_utc <&[u8], i16>, map!(
     char!('Z'), |_| 0
 ));
 
-named!(timezone_fixed <&[u8], i32>, do_parse!(
+named!(timezone_fixed <&[u8], i16>, do_parse!(
     sign: sign >>
-    hour: hour >>
+    hour: verify!(hour, |hour| hour < 24) >>
     minute: opt!(complete!(do_parse!(
         opt!(char!(':')) >>
         minute: minute >>
         (minute)
     ))) >>
-    (sign * (hour as i32 * 60 + minute.unwrap_or(0) as i32))
+    (sign as i16 * (hour as i16 * 60 + minute.unwrap_or(0) as i16))
 ));
 
-named!(timezone <&[u8], i32>, alt!(timezone_utc | timezone_fixed));
+named!(timezone <&[u8], i16>, alt!(timezone_utc | timezone_fixed));
 
 named!(pub datetime <&[u8], DateTime>, do_parse!(
     date: date >>
@@ -212,7 +212,7 @@ named!(pub datetime <&[u8], DateTime>, do_parse!(
 mod tests {
     use nom::Context::Code;
     use nom::Err::{Error, Incomplete};
-    use nom::ErrorKind::{Alt, Verify};
+    use nom::ErrorKind::{Alt, Char, Verify};
     use nom::Needed::Size;
     use {Date, Time, DateTime};
 
@@ -248,12 +248,8 @@ mod tests {
 
         assert_eq!(month(b"06"), Ok((&[][..],  6)));
         assert_eq!(month(b"12"), Ok((&[][..], 12)));
-        assert_eq!(month(b"13"), Err(
-            Error(Code(&b"13"[..], Verify))
-        ));
-        assert_eq!(month(b"00"), Err(
-            Error(Code(&b"00"[..], Verify))
-        ));
+        assert_eq!(month(b"13"), Err(Error(Code(&b"13"[..], Verify))));
+        assert_eq!(month(b"00"), Err(Error(Code(&b"00"[..], Verify))));
     }
 
     #[test]
@@ -285,9 +281,7 @@ mod tests {
             assert_eq!(date(b"-0333-06-11"), Ok((&[][..], value.clone())));
             assert_eq!(date(b"-03330611"),   Ok((&[][..], value        )));
         }
-        assert_eq!(date(b"2018-02-29"), Err(
-            Error(Code(&b"2018-02-29"[..], Verify))
-        ));
+        assert_eq!(date(b"2018-02-29"), Err(Error(Code(&b"2018-02-29"[..], Verify))));
         assert_eq!(date(b"2016-02-29"), Ok((
             &[][..], Date {
                 year: 2016,
@@ -303,9 +297,7 @@ mod tests {
 
         assert_eq!(hour(b"02"), Ok((&[][..],  2)));
         assert_eq!(hour(b"24"), Ok((&[][..], 24)));
-        assert_eq!(hour(b"25"), Err(
-            Error(Code(&b"25"[..], Verify))
-        ));
+        assert_eq!(hour(b"25"), Err(Error(Code(&b"25"[..], Verify))));
     }
 
     #[test]
@@ -314,9 +306,7 @@ mod tests {
 
         assert_eq!(minute(b"02"), Ok((&[][..],  2)));
         assert_eq!(minute(b"59"), Ok((&[][..], 59)));
-        assert_eq!(minute(b"60"), Err(
-            Error(Code(&b"60"[..], Verify))
-        ));
+        assert_eq!(minute(b"60"), Err(Error(Code(&b"60"[..], Verify))));
     }
 
     #[test]
@@ -325,9 +315,26 @@ mod tests {
 
         assert_eq!(second(b"02"), Ok((&[][..],  2)));
         assert_eq!(second(b"60"), Ok((&[][..], 60)));
-        assert_eq!(second(b"61"), Err(
-            Error(Code(&b"61"[..], Verify))
-        ));
+        assert_eq!(second(b"61"), Err(Error(Code(&b"61"[..], Verify))));
+    }
+
+    #[test]
+    fn parse_timezone_fixed() {
+        use super::timezone_fixed;
+
+        assert_eq!(timezone_fixed(b"+23:59"), Ok((&[][..], 23 * 60 + 59)));
+        assert_eq!(timezone_fixed(b"+2359"),  Ok((&[][..], 23 * 60 + 59)));
+        assert_eq!(timezone_fixed(b"+23"),    Ok((&[][..], 23 * 60     )));
+        assert_eq!(timezone_fixed(b"+24:00"), Err(Error(Code(&b"24:00"[..], Verify))));
+        assert_eq!(timezone_fixed(b"-24:00"), Err(Error(Code(&b"24:00"[..], Verify))));
+    }
+
+    #[test]
+    fn parse_timezone_utc() {
+        use super::timezone_utc;
+
+        assert_eq!(timezone_utc(b"Z"), Ok((&[][..], 0)));
+        assert_eq!(timezone_utc(b"z"), Err(Error(Code(&b"z"[..], Char))));
     }
 
     #[test]
@@ -498,6 +505,15 @@ mod tests {
                 second: 0,
                 nanos: 0,
                 tz_offset: -(5 * 60 + 32)
+            }
+        )));
+        assert_eq!(time(b"16:43+23:59"), Ok((
+            &[][..], Time {
+                hour: 16,
+                minute: 43,
+                second: 0,
+                nanos: 0,
+                tz_offset: 23 * 60 + 59
             }
         )));
     }

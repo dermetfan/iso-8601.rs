@@ -7,7 +7,7 @@ pub use parse::*;
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Date {
-    pub year: i32,
+    pub year: i16,
     pub month: u8,
     pub day: u8
 }
@@ -19,7 +19,7 @@ pub struct Time {
     pub second: u8,
     pub nanos: u32,
     /// minutes
-    pub tz_offset: i32
+    pub tz_offset: i16
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
