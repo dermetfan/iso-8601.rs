@@ -1,7 +1,12 @@
 [package]
-name = "isö8601"
+name = "iso-8601"
 version = "0.1.0"
 authors = ["Robin Stumm <serverkorken@gmail.com>"]
+description = "ISO 8601 parser that tries to implement the full standard."
+repository = "https://bitbucket.org/dermetfan/iso-8601"
+keywords = ["iso8601"]
+categories = ["parser-implementations", "date-and-time"]
+license = "Apache-2.0"
 
 [features]
 chrono-serde = ["chrono/serde", "serde"]
