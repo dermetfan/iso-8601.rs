@@ -11,12 +11,15 @@ where T: AddAssign + MulAssign + From<u8> {
     sum
 }
 
-/// Panics on greater than nanosecond precision (length > 9).
-fn sec_frac_buf_to_nanos(buf: &[u8]) -> u32 {
+/// Returns ".`buf`" as unit 10^(-(`precision` + 1)).
+///
+/// Panics on greater than the given precision
+/// (`buf.chars().count() >= precision + 1`).
+fn buf_to_frac_int(buf: &[u8], precision: u8) -> u64 {
     let mut nanos = 0;
     for (i, digit) in buf.iter().enumerate() {
         let digit = digit - b'0';
-        nanos += digit as u32 * 10u32.pow(8 - i as u32);
+        nanos += digit as u64 * 10u64.pow((precision - i as u8) as u32);
     }
     nanos
 }
@@ -110,28 +113,73 @@ named!(second <&[u8], u8>, verify!(
     |second| second <= 60
 ));
 
+macro_rules! frac_int(
+    ($i:expr, $precision:expr) => {
+        complete!($i, do_parse!(
+            one_of!(",.") >>
+            frac: alt_complete!(
+                take_while1!(nom::is_digit) |
+                take_rest!()
+            ) >>
+            (buf_to_frac_int(frac, $precision))
+        ))
+    }
+);
+
 named!(pub time <&[u8], Time>, do_parse!(
     hour: hour >>
-    opt!(char!(':')) >>
-    minute: minute >>
-    seconds: opt!(complete!(do_parse!(
-        opt!(char!(':')) >>
-        second: second >>
-        (second)
-    ))) >>
-    nanos: opt!(complete!(do_parse!(
-        one_of!(".,") >>
-        sec_frac: alt_complete!(
-            take_while1!(nom::is_digit) |
-            take_rest!()
-        ) >>
-        (sec_frac_buf_to_nanos(sec_frac))
-    ))) >>
+    minute_second_nanos: alt_complete!(
+        do_parse!(
+            nanos: frac_int!(10) >>
+            ({
+                let nanos = nanos * 6u64.pow(2);
+                ((
+                    (nanos / 60_000_000_000) as u8,
+                    (nanos % 60_000_000_000 / 1_000_000_000) as u8,
+                    nanos % 1_000_000_000
+                ))
+            })
+        ) |
+        do_parse!(
+            minute: opt!(complete!(do_parse!(
+                opt!(char!(':')) >>
+                minute: minute >>
+                (minute)
+            ))) >>
+            second_nanos: opt!(alt_complete!(
+                do_parse!(
+                    nanos: frac_int!(9) >>
+                    ({
+                        let nanos = nanos * 6;
+                        ((
+                            (nanos / 1_000_000_000) as u8,
+                            nanos % 1_000_000_000
+                        ))
+                    })
+                ) |
+                do_parse!(
+                    opt!(char!(':')) >>
+                    second: second >>
+                    nanos: opt!(frac_int!(8)) >>
+                    ((
+                        second,
+                        nanos.unwrap_or(0)
+                    ))
+                )
+            )) >>
+            ((
+                minute.unwrap_or(0),
+                second_nanos.map(|x| x.0).unwrap_or(0),
+                second_nanos.map(|x| x.1).unwrap_or(0)
+            ))
+        )
+    ) >>
     tz_offset: opt!(complete!(timezone)) >>
     (Time {
-        hour, minute,
-        second: seconds.unwrap_or(0),
-        nanos: nanos.unwrap_or(0),
+        hour,
+        minute: minute_second_nanos.0,
+        second: minute_second_nanos.1,
+        nanos:  minute_second_nanos.2 as u32,
         tz_offset: tz_offset.unwrap_or(0)
     })
 ));
@@ -308,71 +356,98 @@ mod tests {
             assert_eq!(time(b"16:43"), Ok((&[][..], value.clone())));
             assert_eq!(time(b"1643"),  Ok((&[][..], value        )));
         }
+        assert_eq!(time(b"16"), Ok((&[][..], Time {
+            hour: 16,
+            minute: 0,
+            second: 0,
+            nanos: 0,
+            tz_offset: 0
+        })));
     }
 
     #[test]
     fn parse_time_precision() {
         use super::time;
 
-        let value = Time {
-            hour: 16,
-            minute: 43,
-            second: 52,
-            nanos: 0,
-            tz_offset: 0
-        };
-        assert_eq!(time(b"16:43:52.1"), Ok((
+        {
+            let value = Time {
+                hour: 16,
+                minute: 43,
+                second: 52,
+                nanos: 0,
+                tz_offset: 0
+            };
+            assert_eq!(time(b"16:43:52.1"), Ok((
+                &[][..], Time {
+                    nanos: 100_000_000,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52,01"), Ok((
+                &[][..], Time {
+                    nanos: 10_000_000,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52.001"), Ok((
+                &[][..], Time {
+                    nanos: 1_000_000,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52,0001"), Ok((
+                &[][..], Time {
+                    nanos: 100_000,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52.00001"), Ok((
+                &[][..], Time {
+                    nanos: 10_000,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52,000001"), Ok((
+                &[][..], Time {
+                    nanos: 1_000,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52.0000001"), Ok((
+                &[][..], Time {
+                    nanos: 100,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52,00000001"), Ok((
+                &[][..], Time {
+                    nanos: 10,
+                    ..value
+                }
+            )));
+            assert_eq!(time(b"16:43:52.000000001"), Ok((
+                &[][..], Time {
+                    nanos: 1,
+                    ..value
+                }
+            )));
+        }
+        assert_eq!(time(b"16:43.1234567891"), Ok((
             &[][..], Time {
-                nanos: 100_000_000,
-                ..value
+                hour: 16,
+                minute: 43,
+                second: 7,
+                nanos: 407_407_346,
+                tz_offset: 0
             }
         )));
-        assert_eq!(time(b"16:43:52,01"), Ok((
+        assert_eq!(time(b"16.12345678901"), Ok((
             &[][..], Time {
-                nanos: 10_000_000,
-                ..value
-            }
-        )));
-        assert_eq!(time(b"16:43:52.001"), Ok((
-            &[][..], Time {
-                nanos: 1_000_000,
-                ..value
-            }
-        )));
-        assert_eq!(time(b"16:43:52,0001"), Ok((
-            &[][..], Time {
-                nanos: 100_000,
-                ..value
-            }
-        )));
-        assert_eq!(time(b"16:43:52.00001"), Ok((
-            &[][..], Time {
-                nanos: 10_000,
-                ..value
-            }
-        )));
-        assert_eq!(time(b"16:43:52,000001"), Ok((
-            &[][..], Time {
-                nanos: 1_000,
-                ..value
-            }
-        )));
-        assert_eq!(time(b"16:43:52.0000001"), Ok((
-            &[][..], Time {
-                nanos: 100,
-                ..value
-            }
-        )));
-        assert_eq!(time(b"16:43:52,00000001"), Ok((
-            &[][..], Time {
-                nanos: 10,
-                ..value
-            }
-        )));
-        assert_eq!(time(b"16:43:52.000000001"), Ok((
-            &[][..], Time {
-                nanos: 1,
-                ..value
+                hour: 16,
+                minute: 7,
+                second: 24,
+                nanos: 444_440_436,
+                tz_offset: 0
             }
         )));
     }
