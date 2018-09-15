@@ -1,5 +1,5 @@
 [package]
-name = "parse-iso8601" # TODO more generic name to allow parsing other formats? RFC 3339, RFC 2822
+name = "isö8601"
 version = "0.1.0"
 authors = ["Robin Stumm <serverkorken@gmail.com>"]
 
