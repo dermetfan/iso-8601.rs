@@ -196,7 +196,7 @@ named!(timezone_fixed <&[u8], i32>, do_parse!(
         minute: minute >>
         (minute)
     ))) >>
-    (sign * (hour as i32 * 3600 + minute.unwrap_or(0) as i32 * 60))
+    (sign * (hour as i32 * 60 + minute.unwrap_or(0) as i32))
 ));
 
 named!(timezone <&[u8], i32>, alt!(timezone_utc | timezone_fixed));
@@ -486,18 +486,18 @@ mod tests {
                 minute: 43,
                 second: 52,
                 nanos: 0,
-                tz_offset: 5 * 3600
+                tz_offset: 5 * 60
             };
             assert_eq!(time(b"16:43:52+05"),   Ok((&[][..], value.clone())));
             assert_eq!(time(b"16:43:52+0500"), Ok((&[][..], value        )));
         }
-        assert_eq!(time(b"16:43-05:30"), Ok((
+        assert_eq!(time(b"16:43-05:32"), Ok((
             &[][..], Time {
                 hour: 16,
                 minute: 43,
                 second: 0,
                 nanos: 0,
-                tz_offset: -(5 * 3600 + 30 * 60)
+                tz_offset: -(5 * 60 + 32)
             }
         )));
     }
@@ -517,7 +517,7 @@ mod tests {
                 minute: 47,
                 second: 22,
                 nanos: 0,
-                tz_offset: 5 * 3600
+                tz_offset: 5 * 60
             }
         };
         assert_eq!(datetime(b"2007-08-31T16:47:22+05:00"), Ok((&[][..], value.clone())));
