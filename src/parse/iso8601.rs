@@ -34,8 +34,8 @@ macro_rules! take_rest(
 );
 
 named!(sign <&[u8], i32>, alt!(
-    one_of!("-\u{2212}") => { |_| -1 } |
-    char!('+')           => { |_|  1 }
+    one_of!("-\u{2212}\u{2010}") => { |_| -1 } |
+    char!('+')                   => { |_|  1 }
 ));
 
 // TODO support expanded year
