@@ -152,7 +152,15 @@ named!(pub date <&[u8], Date>, verify!(
                 2 => if is_leap(year) { 29 } else { 28 },
                 _ => unreachable!()
             },
-            Date::Week { year, week, day } => // TODO verify day
+            Date::Week { year, week, .. } =>
+                /* FIXME Does not catch all invalid cases:
+                 * - not every leap year has 53 weeks; 2020 does, 2024 does not
+                 * - not every week has 7 days; 2019-W01-7 does not exist
+                 *
+                 * The standard defines the week to start with Monday
+                 * and the first week of a year as the first with a Thursday.
+                 * Given this information, a week date can be unambiguously
+                 * converted to a YMD date. */
                 week <= if is_leap(year) { 53 } else { 52 },
             _ => unimplemented!()
         }
