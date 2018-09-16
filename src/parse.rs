@@ -145,6 +145,12 @@ named!(pub date <&[u8], Date>, verify!(
             factor(4) && (!factor(100) || factor(400))
         }
 
+        fn num_weeks(year: i16) -> u8 {
+            // https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year
+            let p = |x| (x + x / 4 - x / 100 + x / 400) % 7;
+            if p(year) == 4 || p(year - 1) == 3 { 53 } else { 52 }
+        }
+
         match date {
             Date::YMD { year, month, day } => day >= 1 && day <= match month {
                 1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
@@ -152,16 +158,7 @@ named!(pub date <&[u8], Date>, verify!(
                 2 => if is_leap(year) { 29 } else { 28 },
                 _ => unreachable!()
             },
-            Date::Week { year, week, .. } =>
-                /* FIXME Does not catch all invalid cases:
-                 * - not every leap year has 53 weeks; 2020 does, 2024 does not
-                 * - not every week has 7 days; 2019-W01-7 does not exist
-                 *
-                 * The standard defines the week to start with Monday
-                 * and the first week of a year as the first with a Thursday.
-                 * Given this information, a week date can be unambiguously
-                 * converted to a YMD date. */
-                week <= if is_leap(year) { 53 } else { 52 },
+            Date::Week { year, week, .. } => week <= num_weeks(year),
             _ => unimplemented!()
         }
     }
@@ -429,6 +426,12 @@ mod tests {
             week: 22,
             day: 1
         })));
+        assert_eq!(date(b"2020-W53"), Ok((&[][..], Date::Week {
+            year: 2020,
+            week: 53,
+            day: 1
+        })));
+        assert_eq!(date(b"2018-W53"), Err(Error(Code(&b"2018-W53"[..], Verify))));
     }
 
     #[test]
