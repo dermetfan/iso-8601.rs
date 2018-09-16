@@ -1,5 +1,5 @@
 use std::ops::{AddAssign, MulAssign};
-use {nom, Date, Time, DateTime};
+use {nom, Date, YmdDate, WeekDate, Time, DateTime};
 
 fn buf_to_int<T>(buf: &[u8]) -> T
 where T: AddAssign + MulAssign + From<u8> {
@@ -103,10 +103,10 @@ named!(pub date <&[u8], Date>, verify!(
                 day: week_day >>
                 (day)
             ))) >>
-            (Date::Week {
+            (Date::Week(WeekDate {
                 year, week,
                 day: day.unwrap_or(1)
-            })
+            }))
         ) |
         do_parse!(
             year: year >>
@@ -123,19 +123,19 @@ named!(pub date <&[u8], Date>, verify!(
                     day.unwrap_or(1)
                 ))
             ))) >>
-            (Date::YMD {
+            (Date::YMD(YmdDate {
                 year,
                 month: month_day.map(|x| x.0).unwrap_or(1),
                 day:   month_day.map(|x| x.1).unwrap_or(1)
-            })
+            }))
         ) |
         do_parse!(
             century: century >>
-            (Date::YMD {
+            (Date::YMD(YmdDate {
                 year: century as i16 * 100,
                 month: 1,
                 day: 1
-            })
+            }))
         )
         // TODO ordinal
     ),
@@ -152,13 +152,13 @@ named!(pub date <&[u8], Date>, verify!(
         }
 
         match date {
-            Date::YMD { year, month, day } => day >= 1 && day <= match month {
+            Date::YMD(YmdDate { year, month, day }) => day >= 1 && day <= match month {
                 1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
                 4 | 6 | 9 | 11              => 30,
                 2 => if is_leap(year) { 29 } else { 28 },
                 _ => unreachable!()
             },
-            Date::Week { year, week, .. } => week <= num_weeks(year),
+            Date::Week(WeekDate { year, week, .. }) => week <= num_weeks(year),
             _ => unimplemented!()
         }
     }
@@ -289,7 +289,7 @@ mod tests {
     use nom::Err::{Error, Incomplete};
     use nom::ErrorKind::{Alt, Char, Verify};
     use nom::Needed::Size;
-    use {Date, Time, DateTime};
+    use {Date, YmdDate, WeekDate, Time, DateTime};
 
     #[test]
     fn parse_sign() {
@@ -362,75 +362,75 @@ mod tests {
         use super::date;
 
         {
-            let value = Date::YMD {
+            let value = Date::YMD(YmdDate {
                 year: 2015,
                 month: 7,
                 day: 16
-            };
+            });
             assert_eq!(date(b"2015-07-16"), Ok((&[][..], value.clone())));
             assert_eq!(date(b"20150716"),   Ok((&[][..], value        )));
         }
         {
-            let value = Date::YMD {
+            let value = Date::YMD(YmdDate {
                 year: -333,
                 month: 6,
                 day: 11
-            };
+            });
             assert_eq!(date(b"-0333-06-11"), Ok((&[][..], value.clone())));
             assert_eq!(date(b"-03330611"),   Ok((&[][..], value        )));
         }
         assert_eq!(date(b"2018-02-29"), Err(Error(Code(&b"2018-02-29"[..], Verify))));
-        assert_eq!(date(b"2016-02-29"), Ok((&[][..], Date::YMD {
+        assert_eq!(date(b"2016-02-29"), Ok((&[][..], Date::YMD(YmdDate {
             year: 2016,
             month: 2,
             day: 29
-        })));
-        assert_eq!(date(b"2016-02"), Ok((&[][..], Date::YMD {
+        }))));
+        assert_eq!(date(b"2016-02"), Ok((&[][..], Date::YMD(YmdDate {
             year: 2016,
             month: 2,
             day: 1
-        })));
-        assert_eq!(date(b"2016"), Ok((&[][..], Date::YMD {
+        }))));
+        assert_eq!(date(b"2016"), Ok((&[][..], Date::YMD(YmdDate {
             year: 2016,
             month: 1,
             day: 1
-        })));
-        assert_eq!(date(b"20"), Ok((&[][..], Date::YMD {
+        }))));
+        assert_eq!(date(b"20"), Ok((&[][..], Date::YMD(YmdDate {
             year: 2000,
             month: 1,
             day: 1
-        })));
+        }))));
     }
 
     #[test]
     fn parse_date_week() {
         use super::date;
 
-        assert_eq!(date(b"2018-W01-1"), Ok((&[][..], Date::Week {
+        assert_eq!(date(b"2018-W01-1"), Ok((&[][..], Date::Week(WeekDate {
             year: 2018,
             week: 1,
             day: 1
-        })));
-        assert_eq!(date(b"2018-W52-7"), Ok((&[][..], Date::Week {
+        }))));
+        assert_eq!(date(b"2018-W52-7"), Ok((&[][..], Date::Week(WeekDate {
             year: 2018,
             week: 52,
             day: 7
-        })));
-        assert_eq!(date(b"2018W223"), Ok((&[][..], Date::Week {
+        }))));
+        assert_eq!(date(b"2018W223"), Ok((&[][..], Date::Week(WeekDate {
             year: 2018,
             week: 22,
             day: 3
-        })));
-        assert_eq!(date(b"2018W22"), Ok((&[][..], Date::Week {
+        }))));
+        assert_eq!(date(b"2018W22"), Ok((&[][..], Date::Week(WeekDate {
             year: 2018,
             week: 22,
             day: 1
-        })));
-        assert_eq!(date(b"2020-W53"), Ok((&[][..], Date::Week {
+        }))));
+        assert_eq!(date(b"2020-W53"), Ok((&[][..], Date::Week(WeekDate {
             year: 2020,
             week: 53,
             day: 1
-        })));
+        }))));
         assert_eq!(date(b"2018-W53"), Err(Error(Code(&b"2018-W53"[..], Verify))));
     }
 
@@ -636,11 +636,11 @@ mod tests {
         use super::datetime;
 
         let value = DateTime {
-            date: Date::YMD {
+            date: Date::YMD(YmdDate {
                 year: 2007,
                 month: 8,
                 day: 31
-            },
+            }),
             time: Time {
                 hour: 16,
                 minute: 47,
