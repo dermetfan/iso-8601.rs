@@ -6,10 +6,21 @@ pub mod chrono;
 pub use parse::*;
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub struct Date {
-    pub year: i16,
-    pub month: u8,
-    pub day: u8
+pub enum Date {
+    YMD {
+        year: i16,
+        month: u8,
+        day: u8
+    },
+    Week {
+        year: i16,
+        week: u8,
+        day: u8
+    },
+    Ordinal {
+        year: i16,
+        day: u16
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
