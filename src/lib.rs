@@ -114,6 +114,16 @@ impl From<Date> for YmdDate {
     }
 }
 
+impl From<Date> for OrdinalDate {
+    fn from(date: Date) -> Self {
+        match date {
+            Date::YMD    (date) => date.into(),
+            Date::Week   (date) => date.into(),
+            Date::Ordinal(date) => date
+        }
+    }
+}
+
 impl From<WeekDate> for OrdinalDate {
     fn from(date: WeekDate) -> Self {
         // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year,_week_number_and_weekday
@@ -139,6 +149,40 @@ impl From<WeekDate> for OrdinalDate {
         Self {
             year: date.year,
             day
+        }
+    }
+}
+
+impl From<YmdDate> for OrdinalDate {
+    fn from(date: YmdDate) -> Self {
+        let leap = date.year.is_leap();
+        Self {
+            year: date.year,
+            day: match date.month {
+                 1         =>   0,
+                 2         =>  31,
+                 3 if leap =>  60,
+                 3         =>  59,
+                 4 if leap =>  91,
+                 4         =>  90,
+                 5 if leap => 121,
+                 5         => 120,
+                 6 if leap => 152,
+                 6         => 151,
+                 7 if leap => 182,
+                 7         => 181,
+                 8 if leap => 213,
+                 8         => 212,
+                 9 if leap => 244,
+                 9         => 243,
+                10 if leap => 274,
+                10         => 273,
+                11 if leap => 305,
+                11         => 304,
+                12 if leap => 335,
+                12         => 334,
+                _ => unreachable!()
+            } + date.day as u16
         }
     }
 }
@@ -199,6 +243,21 @@ mod tests {
                 year: 1985,
                 week: 15,
                 day: 5
+            }),
+            OrdinalDate {
+                year: 1985,
+                day: 102
+            }
+        );
+    }
+
+    #[test]
+    fn ordinal_from_ymd() {
+        assert_eq!(
+            OrdinalDate::from(YmdDate {
+                year: 1985,
+                month: 4,
+                day: 12
             }),
             OrdinalDate {
                 year: 1985,
