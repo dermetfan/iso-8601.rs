@@ -140,25 +140,16 @@ named!(pub date <&[u8], Date>, verify!(
         // TODO ordinal
     ),
     |date: Date| {
-        fn is_leap(year: i16) -> bool {
-            let factor = |x| year % x == 0;
-            factor(4) && (!factor(100) || factor(400))
-        }
-
-        fn num_weeks(year: i16) -> u8 {
-            // https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year
-            let p = |x| (x + x / 4 - x / 100 + x / 400) % 7;
-            if p(year) == 4 || p(year - 1) == 3 { 53 } else { 52 }
-        }
+        use ::Year;
 
         match date {
             Date::YMD(YmdDate { year, month, day }) => day >= 1 && day <= match month {
                 1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
                 4 | 6 | 9 | 11              => 30,
-                2 => if is_leap(year) { 29 } else { 28 },
+                2 => if year.is_leap() { 29 } else { 28 },
                 _ => unreachable!()
             },
-            Date::Week(WeekDate { year, week, .. }) => week <= num_weeks(year),
+            Date::Week(WeekDate { year, week, .. }) => week <= year.num_weeks(),
             _ => unimplemented!()
         }
     }

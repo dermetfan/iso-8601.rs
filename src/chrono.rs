@@ -12,11 +12,13 @@ use self::chrono::{
 
 impl From<::DateTime> for DateTime<FixedOffset> {
     fn from(dt: ::DateTime) -> Self {
+        let date: ::YmdDate = dt.date.into();
+
         FixedOffset::east((dt.time.tz_offset * 60) as i32)
             .ymd(
-                dt.date.year as i32,
-                dt.date.month.into(),
-                dt.date.day.into()
+                date.year as i32,
+                date.month.into(),
+                date.day.into()
             )
             .and_hms_nano(
                 dt.time.hour.into(),
