@@ -114,6 +114,16 @@ impl From<Date> for YmdDate {
     }
 }
 
+impl From<Date> for WeekDate {
+    fn from(date: Date) -> Self {
+        match date {
+            Date::YMD    (date) => date.into(),
+            Date::Week   (date) => date,
+            Date::Ordinal(date) => date.into()
+        }
+    }
+}
+
 impl From<Date> for OrdinalDate {
     fn from(date: Date) -> Self {
         match date {
@@ -124,66 +134,10 @@ impl From<Date> for OrdinalDate {
     }
 }
 
-impl From<WeekDate> for OrdinalDate {
+impl From<WeekDate> for YmdDate {
     fn from(date: WeekDate) -> Self {
-        // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year,_week_number_and_weekday
-
-        fn weekday_jan4(year: i16) -> u8 {
-            fn weekday_jan1(year: i16) -> u8 {
-                // https://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week#Gauss's_algorithm
-                let y = year - 1;
-                ((1 + 5 * (y % 4) + 4 * (y % 100) + 6 * (y % 400)) % 7) as u8
-            }
-
-            (weekday_jan1(year) + 3) % 7
-        }
-
-        let mut day = (date.week * 7 + date.day - (weekday_jan4(date.year) + 3)) as u16;
-        if day < 1 {
-            day += (date.year - 1).num_days();
-        }
-        if day > date.year.num_days() {
-            day -= date.year.num_days();
-        }
-
-        Self {
-            year: date.year,
-            day
-        }
-    }
-}
-
-impl From<YmdDate> for OrdinalDate {
-    fn from(date: YmdDate) -> Self {
-        let leap = date.year.is_leap();
-        Self {
-            year: date.year,
-            day: match date.month {
-                 1         =>   0,
-                 2         =>  31,
-                 3 if leap =>  60,
-                 3         =>  59,
-                 4 if leap =>  91,
-                 4         =>  90,
-                 5 if leap => 121,
-                 5         => 120,
-                 6 if leap => 152,
-                 6         => 151,
-                 7 if leap => 182,
-                 7         => 181,
-                 8 if leap => 213,
-                 8         => 212,
-                 9 if leap => 244,
-                 9         => 243,
-                10 if leap => 274,
-                10         => 273,
-                11 if leap => 305,
-                11         => 304,
-                12 if leap => 335,
-                12         => 334,
-                _ => unreachable!()
-            } + date.day as u16
-        }
+        let date: OrdinalDate = date.into();
+        date.into()
     }
 }
 
@@ -225,10 +179,78 @@ impl From<OrdinalDate> for YmdDate {
     }
 }
 
-impl From<WeekDate> for YmdDate {
+impl From<YmdDate> for WeekDate {
+    fn from(date: YmdDate) -> Self {
+        unimplemented!()
+    }
+}
+
+impl From<OrdinalDate> for WeekDate {
+    fn from(date: OrdinalDate) -> Self {
+        unimplemented!()
+    }
+}
+
+impl From<YmdDate> for OrdinalDate {
+    fn from(date: YmdDate) -> Self {
+        let leap = date.year.is_leap();
+        Self {
+            year: date.year,
+            day: match date.month {
+                 1         =>   0,
+                 2         =>  31,
+                 3 if leap =>  60,
+                 3         =>  59,
+                 4 if leap =>  91,
+                 4         =>  90,
+                 5 if leap => 121,
+                 5         => 120,
+                 6 if leap => 152,
+                 6         => 151,
+                 7 if leap => 182,
+                 7         => 181,
+                 8 if leap => 213,
+                 8         => 212,
+                 9 if leap => 244,
+                 9         => 243,
+                10 if leap => 274,
+                10         => 273,
+                11 if leap => 305,
+                11         => 304,
+                12 if leap => 335,
+                12         => 334,
+                _ => unreachable!()
+            } + date.day as u16
+        }
+    }
+}
+
+impl From<WeekDate> for OrdinalDate {
     fn from(date: WeekDate) -> Self {
-        let date: OrdinalDate = date.into();
-        date.into()
+        // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year,_week_number_and_weekday
+
+        fn weekday_jan4(year: i16) -> u8 {
+            fn weekday_jan1(year: i16) -> u8 {
+                // https://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week#Gauss's_algorithm
+                let y = year - 1;
+                ((1 + 5 * (y % 4) + 4 * (y % 100) + 6 * (y % 400)) % 7) as u8
+            }
+
+            (weekday_jan1(year) + 3) % 7
+        }
+
+        let mut day = (date.week * 7 + date.day - (weekday_jan4(date.year) + 3)) as u16;
+        if day < 1 {
+            day += (date.year - 1).num_days();
+        }
+        if day > date.year.num_days() {
+            day -= date.year.num_days();
+        }
+
+        Self {
+            year: date.year,
+            day
+        }
     }
 }
 
@@ -237,31 +259,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ordinal_from_week() {
+    fn ymd_from_week() {
         assert_eq!(
-            OrdinalDate::from(WeekDate {
+            YmdDate::from(WeekDate {
                 year: 1985,
                 week: 15,
                 day: 5
             }),
-            OrdinalDate {
-                year: 1985,
-                day: 102
-            }
-        );
-    }
-
-    #[test]
-    fn ordinal_from_ymd() {
-        assert_eq!(
-            OrdinalDate::from(YmdDate {
+            YmdDate {
                 year: 1985,
                 month: 4,
                 day: 12
-            }),
-            OrdinalDate {
-                year: 1985,
-                day: 102
             }
         );
     }
@@ -282,17 +290,62 @@ mod tests {
     }
 
     #[test]
-    fn ymd_from_week() {
+    fn week_from_ymd() {
         assert_eq!(
-            YmdDate::from(WeekDate {
+            WeekDate::from(YmdDate {
+                year: 1985,
+                month: 4,
+                day: 12
+            }),
+            WeekDate {
+                year: 1985,
+                week: 15,
+                day: 5
+            }
+        );
+    }
+
+    #[test]
+    fn week_from_ordinal() {
+        assert_eq!(
+            WeekDate::from(OrdinalDate {
+                year: 1985,
+                day: 102
+            }),
+            WeekDate {
+                year: 1985,
+                week: 15,
+                day: 5
+            }
+        );
+    }
+
+    #[test]
+    fn ordinal_from_ymd() {
+        assert_eq!(
+            OrdinalDate::from(YmdDate {
+                year: 1985,
+                month: 4,
+                day: 12
+            }),
+            OrdinalDate {
+                year: 1985,
+                day: 102
+            }
+        );
+    }
+
+    #[test]
+    fn ordinal_from_week() {
+        assert_eq!(
+            OrdinalDate::from(WeekDate {
                 year: 1985,
                 week: 15,
                 day: 5
             }),
-            YmdDate {
+            OrdinalDate {
                 year: 1985,
-                month: 4,
-                day: 12
+                day: 102
             }
         );
     }
