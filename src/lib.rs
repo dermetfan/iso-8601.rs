@@ -9,29 +9,29 @@ use std::convert::From;
 use std::str::FromStr;
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub enum Date {
-    YMD(YmdDate),
-    Week(WeekDate),
-    Ordinal(OrdinalDate)
+pub enum Date<Y: Year = i16> {
+    YMD(YmdDate<Y>),
+    Week(WeekDate<Y>),
+    Ordinal(OrdinalDate<Y>)
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub struct YmdDate {
-    year: i16,
+pub struct YmdDate<Y: Year = i16> {
+    year: Y,
     month: u8,
     day: u8
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub struct WeekDate {
-    year: i16,
+pub struct WeekDate<Y: Year = i16> {
+    year: Y,
     week: u8,
     day: u8
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub struct OrdinalDate {
-    year: i16,
+pub struct OrdinalDate<Y: Year = i16> {
+    year: Y,
     day: u16
 }
 
@@ -46,8 +46,8 @@ pub struct Time {
 }
 
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
-pub struct DateTime {
-    pub date: Date,
+pub struct DateTime<Y: Year = i16> {
+    pub date: Date<Y>,
     pub time: Time
 }
 
@@ -84,25 +84,35 @@ impl FromStr for DateTime {
 pub trait Year {
     fn is_leap(&self) -> bool;
     fn num_weeks(&self) -> u8;
-    fn num_days(&self) -> u16;
-}
-
-impl Year for i16 {
-    fn is_leap(&self) -> bool {
-        let factor = |x| self % x == 0;
-        factor(4) && (!factor(100) || factor(400))
-    }
-
-    fn num_weeks(&self) -> u8 {
-        // https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year
-        let p = |x| (x + x / 4 - x / 100 + x / 400) % 7;
-        if p(*self) == 4 || p(self - 1) == 3 { 53 } else { 52 }
-    }
 
     fn num_days(&self) -> u16 {
         if self.is_leap() { 366 } else { 365 }
     }
 }
+
+macro_rules! impl_year {
+    ($ty:ty) => {
+        impl Year for $ty {
+            fn is_leap(&self) -> bool {
+                let factor = |x| self % x == 0;
+                factor(4) && (!factor(100) || factor(400))
+            }
+
+            fn num_weeks(&self) -> u8 {
+                // https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year
+                let p = |x| (x + x / 4 - x / 100 + x / 400) % 7;
+                if p(*self) == 4 || p(self - 1) == 3 { 53 } else { 52 }
+            }
+        }
+    }
+}
+
+impl_year!(i16);
+impl_year!(i32);
+impl_year!(i64);
+impl_year!(u16);
+impl_year!(u32);
+impl_year!(u64);
 
 impl From<Date> for YmdDate {
     fn from(date: Date) -> Self {
