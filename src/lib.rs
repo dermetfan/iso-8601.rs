@@ -146,8 +146,7 @@ impl From<Date> for OrdinalDate {
 
 impl From<WeekDate> for YmdDate {
     fn from(date: WeekDate) -> Self {
-        let date: OrdinalDate = date.into();
-        date.into()
+        OrdinalDate::from(date).into()
     }
 }
 
@@ -191,13 +190,25 @@ impl From<OrdinalDate> for YmdDate {
 
 impl From<YmdDate> for WeekDate {
     fn from(date: YmdDate) -> Self {
-        unimplemented!()
+        OrdinalDate::from(date).into()
     }
 }
 
 impl From<OrdinalDate> for WeekDate {
     fn from(date: OrdinalDate) -> Self {
-        unimplemented!()
+        // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_the_week_number_of_a_given_date
+        let y = date.year % 100 % 28;
+        let cc = (date.year / 100) % 4;
+        let mut c = ((y + (y - 1) / 4 + 5 * cc - 1) % 7) as i16;
+        if c > 3 {
+            c -= 7;
+        }
+        let dc = date.day as i16 + c;
+        Self {
+            year: date.year,
+            week: (dc as f32 / 7.0).ceil() as u8,
+            day: (dc % 7) as u8
+        }
     }
 }
 
@@ -311,6 +322,18 @@ mod tests {
                 year: 1985,
                 week: 15,
                 day: 5
+            }
+        );
+        assert_eq!(
+            WeekDate::from(YmdDate {
+                year: 2023,
+                month: 2,
+                day: 27
+            }),
+            WeekDate {
+                year: 2023,
+                week: 9,
+                day: 1
             }
         );
     }
