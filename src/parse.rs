@@ -24,14 +24,27 @@ fn buf_to_frac_int(buf: &[u8], precision: u8) -> u64 {
     nanos
 }
 
+macro_rules! frac_int {
+    ($i:expr, $precision:expr) => {
+        complete!($i, do_parse!(
+            one_of!(",.") >>
+            frac: alt_complete!(
+                take_while1!(nom::is_digit) |
+                take_rest!()
+            ) >>
+            (buf_to_frac_int(frac, $precision))
+        ))
+    }
+}
+
 /// Takes the rest of the input until EOF.
-macro_rules! take_rest(
+macro_rules! take_rest {
     ($i:expr,) => ({
         use nom::InputLength;
 
         take!($i, $i.input_len())
     })
-);
+}
 
 named!(sign <&[u8], i8>, alt!(
     one_of!("-\u{2212}\u{2010}") => { |_| -1 } |
@@ -178,19 +191,6 @@ named!(second <&[u8], u8>, verify!(
     ),
     |second| second <= 60
 ));
-
-macro_rules! frac_int(
-    ($i:expr, $precision:expr) => {
-        complete!($i, do_parse!(
-            one_of!(",.") >>
-            frac: alt_complete!(
-                take_while1!(nom::is_digit) |
-                take_rest!()
-            ) >>
-            (buf_to_frac_int(frac, $precision))
-        ))
-    }
-);
 
 named!(pub time <&[u8], Time>, do_parse!(
     hour: hour >>

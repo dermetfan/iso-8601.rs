@@ -106,7 +106,6 @@ macro_rules! impl_year {
         }
     }
 }
-
 impl_year!(i16);
 impl_year!(i32);
 impl_year!(i64);
