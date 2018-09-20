@@ -1,4 +1,5 @@
 #[macro_use] extern crate nom;
+extern crate regex;
 
 mod parse;
 pub mod chrono;
@@ -52,7 +53,7 @@ pub struct DateTime<Y: Year = i16> {
 }
 
 impl FromStr for Date {
-    type Err = (); // XXX
+    type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse::date(s.as_bytes())
@@ -62,7 +63,7 @@ impl FromStr for Date {
 }
 
 impl FromStr for Time {
-    type Err = (); // XXX
+    type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse::time(s.as_bytes())
@@ -72,7 +73,7 @@ impl FromStr for Time {
 }
 
 impl FromStr for DateTime {
-    type Err = (); // XXX
+    type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         parse::datetime(s.as_bytes())

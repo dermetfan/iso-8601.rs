@@ -1,5 +1,5 @@
 use std::ops::{AddAssign, MulAssign};
-use {nom, Date, YmdDate, WeekDate, Time, DateTime};
+use {nom, Date, YmdDate, WeekDate, OrdinalDate, Time, DateTime};
 
 fn buf_to_int<T>(buf: &[u8]) -> T
 where T: AddAssign + MulAssign + From<u8> {
@@ -99,58 +99,89 @@ named!(year_week <&[u8], u8>, verify!(
     |week| week >= 1
 ));
 
+named!(year_day <&[u8], u8>, map!(
+    take_while_m_n!(3, 3, nom::is_digit),
+    buf_to_int
+));
+
 named!(week_day <&[u8], u8>, verify!(
     map!(take!(1), buf_to_int),
     |day| day >= 1 && day <= 7
 ));
 
+named!(date_ymd <&[u8], YmdDate>, alt_complete!(
+    do_parse!(
+        year: year >>
+        month_day: opt!(complete!(do_parse!(
+            opt!(char!('-')) >>
+            month: month >>
+            day: opt!(complete!(do_parse!(
+                opt!(char!('-')) >>
+                day: day >>
+                (day)
+            ))) >>
+            ((
+                month,
+                day.unwrap_or(1)
+            ))
+        ))) >>
+        (YmdDate {
+            year,
+            month: month_day.map(|x| x.0).unwrap_or(1),
+            day:   month_day.map(|x| x.1).unwrap_or(1)
+        })
+    ) |
+    do_parse!(
+        century: century >>
+        (YmdDate {
+            year: century as i16 * 100,
+            month: 1,
+            day: 1
+        })
+    )
+));
+
+named!(date_week <&[u8], WeekDate>, do_parse!(
+    year: year >>
+    opt!(char!('-')) >>
+    char!('W') >>
+    week: year_week >>
+    day: opt!(complete!(do_parse!(
+        opt!(char!('-')) >>
+        day: week_day >>
+        (day)
+    ))) >>
+    (WeekDate {
+        year, week,
+        day: day.unwrap_or(1)
+    })
+));
+
+named!(date_ordinal <&[u8], OrdinalDate>, do_parse!(
+    year: year >>
+    opt!(char!('-')) >>
+    day: year_day >>
+    (OrdinalDate {
+        year,
+        day: day.into()
+    })
+));
+
 named!(pub date <&[u8], Date>, verify!(
     alt_complete!(
         do_parse!(
-            year: year >>
-            opt!(char!('-')) >>
-            char!('W') >>
-            week: year_week >>
-            day: opt!(complete!(do_parse!(
-                opt!(char!('-')) >>
-                day: week_day >>
-                (day)
-            ))) >>
-            (Date::Week(WeekDate {
-                year, week,
-                day: day.unwrap_or(1)
-            }))
+            date: date_week >>
+            (Date::Week(date))
         ) |
         do_parse!(
-            year: year >>
-            month_day: opt!(complete!(do_parse!(
-                opt!(char!('-')) >>
-                month: month >>
-                day: opt!(complete!(do_parse!(
-                    opt!(char!('-')) >>
-                    day: day >>
-                    (day)
-                ))) >>
-                ((
-                    month,
-                    day.unwrap_or(1)
-                ))
-            ))) >>
-            (Date::YMD(YmdDate {
-                year,
-                month: month_day.map(|x| x.0).unwrap_or(1),
-                day:   month_day.map(|x| x.1).unwrap_or(1)
-            }))
+            peek!(re_bytes_match!(r"^\d{4}-?\d{3}$")) >>
+            date: date_ordinal >>
+            (Date::Ordinal(date))
         ) |
         do_parse!(
-            century: century >>
-            (Date::YMD(YmdDate {
-                year: century as i16 * 100,
-                month: 1,
-                day: 1
-            }))
+            date: date_ymd >>
+            (Date::YMD(date))
         )
-        // TODO ordinal
     ),
     |date: Date| {
         use ::Year;
@@ -163,7 +194,7 @@ named!(pub date <&[u8], Date>, verify!(
                 _ => unreachable!()
             },
             Date::Week(WeekDate { year, week, .. }) => week <= year.num_weeks(),
-            _ => unimplemented!()
+            Date::Ordinal(OrdinalDate { year, day }) => day >= 1 && day <= year.num_days()
         }
     }
 ));
@@ -280,7 +311,7 @@ mod tests {
     use nom::Err::{Error, Incomplete};
     use nom::ErrorKind::{Alt, Char, Verify};
     use nom::Needed::Size;
-    use {Date, YmdDate, WeekDate, Time, DateTime};
+    use {Date, YmdDate, WeekDate, OrdinalDate, Time, DateTime};
 
     #[test]
     fn parse_sign() {
@@ -324,6 +355,16 @@ mod tests {
 
         assert_eq!(year_week(b"01"), Ok((&[][..], 1)));
         assert_eq!(year_week(b"00"), Err(Error(Code(&b"00"[..], Verify))));
+    }
+
+    #[test]
+    fn parse_year_day() {
+        use super::year_day;
+
+        assert_eq!(year_day(b"001"),  Ok((&[][..],     1)));
+        assert_eq!(year_day(b"011"),  Ok((&[][..],    11)));
+        assert_eq!(year_day(b"111"),  Ok((&[][..],   111)));
+        assert_eq!(year_day(b"1111"), Ok((&b"1"[..], 111)));
     }
 
     #[test]
@@ -423,6 +464,18 @@ mod tests {
             day: 1
         }))));
         assert_eq!(date(b"2018-W53"), Err(Error(Code(&b"2018-W53"[..], Verify))));
+    }
+
+    #[test]
+    fn parse_date_ordinal() {
+        use super::date;
+
+        let value = Date::Ordinal(OrdinalDate {
+            year: 1985,
+            day: 102
+        });
+        assert_eq!(date(b"1985-102"), Ok((&[][..], value.clone())));
+        assert_eq!(date(b"1985102"),  Ok((&[][..], value        )));
     }
 
     #[test]
