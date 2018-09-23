@@ -415,6 +415,26 @@ mod tests {
     }
 
     #[test]
+    fn date() {
+        assert_eq!(super::date(b"2018-02-12"), Ok((&[][..], Date::YMD(YmdDate {
+            year: 2018,
+            month: 2,
+            day: 12
+        }))));
+
+        assert_eq!(super::date(b"2018-W02-2"), Ok((&[][..], Date::Week(WeekDate {
+            year: 2018,
+            week: 2,
+            day: 2
+        }))));
+
+        assert_eq!(super::date(b"2018-102"), Ok((&[][..], Date::Ordinal(OrdinalDate {
+            year: 2018,
+            day: 102
+        }))));
+    }
+
+    #[test]
     fn hour() {
         assert_eq!(super::hour(b"02"), Ok((&[][..],  2)));
         assert_eq!(super::hour(b"24"), Ok((&[][..], 24)));
