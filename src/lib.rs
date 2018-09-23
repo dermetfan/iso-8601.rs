@@ -4,8 +4,6 @@ extern crate regex;
 mod parse;
 pub mod chrono;
 
-pub use parse::*;
-
 use std::convert::From;
 use std::str::FromStr;
 
