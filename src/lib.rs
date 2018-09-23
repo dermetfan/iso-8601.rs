@@ -18,22 +18,22 @@ pub enum Date<Y: Year = i16> {
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct YmdDate<Y: Year = i16> {
-    year: Y,
-    month: u8,
-    day: u8
+    pub year: Y,
+    pub month: u8,
+    pub day: u8
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct WeekDate<Y: Year = i16> {
-    year: Y,
-    week: u8,
-    day: u8
+    pub year: Y,
+    pub week: u8,
+    pub day: u8
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct OrdinalDate<Y: Year = i16> {
-    year: Y,
-    day: u16
+    pub year: Y,
+    pub day: u16
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
