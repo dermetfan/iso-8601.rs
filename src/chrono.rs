@@ -21,10 +21,10 @@ impl From<::DateTime> for DateTime<FixedOffset> {
                 date.day.into()
             )
             .and_hms_nano(
-                dt.time.hour.into(),
-                dt.time.minute.into(),
-                dt.time.second.into(),
-                dt.time.nanos
+                dt.time.local.hour.into(),
+                dt.time.local.minute.into(),
+                dt.time.local.second.into(),
+                dt.time.local.nanos
             )
     }
 }
