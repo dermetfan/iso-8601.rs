@@ -74,29 +74,19 @@ named!(year <&[u8], i16>, do_parse!(
     (sign.unwrap_or(1) as i16 * year as i16)
 ));
 
-named!(month <&[u8], u8>, verify!(
-    map!(
-        take_while_m_n!(2, 2, nom::is_digit),
-        buf_to_int
-    ),
-    |month| month >= 1 && month <= 12
+named!(month <&[u8], u8>, map!(
+    take_while_m_n!(2, 2, nom::is_digit),
+    buf_to_int
 ));
 
-/// Not verified since number of days
-/// in a month depends on the month.
 named!(day <&[u8], u8>, map!(
     take_while_m_n!(2, 2, nom::is_digit),
     buf_to_int
 ));
 
-/// Not fully verified since number of weeks
-/// in a year depends on the year.
-named!(year_week <&[u8], u8>, verify!(
-    map!(
-        take_while_m_n!(2, 2, nom::is_digit),
-        buf_to_int
-    ),
-    |week| week >= 1
+named!(year_week <&[u8], u8>, map!(
+    take_while_m_n!(2, 2, nom::is_digit),
+    buf_to_int
 ));
 
 named!(year_day <&[u8], u8>, map!(
@@ -104,9 +94,9 @@ named!(year_day <&[u8], u8>, map!(
     buf_to_int
 ));
 
-named!(week_day <&[u8], u8>, verify!(
-    map!(take!(1), buf_to_int),
-    |day| day >= 1 && day <= 7
+named!(week_day <&[u8], u8>, map!(
+    take!(1),
+    buf_to_int
 ));
 
 named!(date_ymd <&[u8], YmdDate>, alt_complete!(
@@ -167,60 +157,35 @@ named!(date_ordinal <&[u8], OrdinalDate>, do_parse!(
     })
 ));
 
-named!(pub date <&[u8], Date>, verify!(
-    alt_complete!(
-        do_parse!(
-            date: date_week >>
-            (Date::Week(date))
-        ) |
-        do_parse!(
-            peek!(re_bytes_match!(r"^\d{4}-?\d{3}$")) >>
-            date: date_ordinal >>
-            (Date::Ordinal(date))
-        ) |
-        do_parse!(
-            date: date_ymd >>
-            (Date::YMD(date))
-        )
-    ),
-    |date: Date| {
-        use ::Year;
-
-        match date {
-            Date::YMD(YmdDate { year, month, day }) => day >= 1 && day <= match month {
-                1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-                4 | 6 | 9 | 11              => 30,
-                2 => if year.is_leap() { 29 } else { 28 },
-                _ => unreachable!()
-            },
-            Date::Week(WeekDate { year, week, .. }) => week <= year.num_weeks(),
-            Date::Ordinal(OrdinalDate { year, day }) => day >= 1 && day <= year.num_days()
-        }
-    }
+named!(pub date <&[u8], Date>, alt_complete!(
+    do_parse!(
+        date: date_week >>
+        (Date::Week(date))
+    ) |
+    do_parse!(
+        peek!(re_bytes_match!(r"^\d{4}-?\d{3}$")) >>
+        date: date_ordinal >>
+        (Date::Ordinal(date))
+    ) |
+    do_parse!(
+        date: date_ymd >>
+        (Date::YMD(date))
+    )
 ));
 
-named!(hour <&[u8], u8>, verify!(
-    map!(
-        take_while_m_n!(2, 2, nom::is_digit),
-        buf_to_int
-    ),
-    |hour| hour <= 24
+named!(hour <&[u8], u8>, map!(
+    take_while_m_n!(2, 2, nom::is_digit),
+    buf_to_int
 ));
 
-named!(minute <&[u8], u8>, verify!(
-    map!(
-        take_while_m_n!(2, 2, nom::is_digit),
-        buf_to_int
-    ),
-    |minute| minute <= 59
+named!(minute <&[u8], u8>, map!(
+    take_while_m_n!(2, 2, nom::is_digit),
+    buf_to_int
 ));
 
-named!(second <&[u8], u8>, verify!(
-    map!(
-        take_while_m_n!(2, 2, nom::is_digit),
-        buf_to_int
-    ),
-    |second| second <= 60
+named!(second <&[u8], u8>, map!(
+    take_while_m_n!(2, 2, nom::is_digit),
+    buf_to_int
 ));
 
 named!(pub time <&[u8], Time>, do_parse!(
@@ -287,7 +252,7 @@ named!(timezone_utc <&[u8], i16>, map!(
 
 named!(timezone_fixed <&[u8], i16>, do_parse!(
     sign: sign >>
-    hour: verify!(hour, |hour| hour < 24) >>
+    hour: hour >>
     minute: opt!(complete!(do_parse!(
         opt!(char!(':')) >>
         minute: minute >>
@@ -309,7 +274,7 @@ named!(pub datetime <&[u8], DateTime>, do_parse!(
 mod tests {
     use nom::Context::Code;
     use nom::Err::{Error, Incomplete};
-    use nom::ErrorKind::{Alt, Char, Verify};
+    use nom::ErrorKind::{Alt, Char};
     use nom::Needed::Size;
     use {Date, YmdDate, WeekDate, OrdinalDate, Time, DateTime};
 
@@ -345,8 +310,6 @@ mod tests {
 
         assert_eq!(month(b"06"), Ok((&[][..],  6)));
         assert_eq!(month(b"12"), Ok((&[][..], 12)));
-        assert_eq!(month(b"13"), Err(Error(Code(&b"13"[..], Verify))));
-        assert_eq!(month(b"00"), Err(Error(Code(&b"00"[..], Verify))));
     }
 
     #[test]
@@ -354,7 +317,6 @@ mod tests {
         use super::year_week;
 
         assert_eq!(year_week(b"01"), Ok((&[][..], 1)));
-        assert_eq!(year_week(b"00"), Err(Error(Code(&b"00"[..], Verify))));
     }
 
     #[test]
@@ -385,8 +347,6 @@ mod tests {
         assert_eq!(week_day(b"5"), Ok((&[][..], 5)));
         assert_eq!(week_day(b"6"), Ok((&[][..], 6)));
         assert_eq!(week_day(b"7"), Ok((&[][..], 7)));
-        assert_eq!(week_day(b"0"), Err(Error(Code(&b"0"[..], Verify))));
-        assert_eq!(week_day(b"8"), Err(Error(Code(&b"8"[..], Verify))));
     }
 
     #[test]
@@ -411,7 +371,6 @@ mod tests {
             assert_eq!(date(b"-0333-06-11"), Ok((&[][..], value.clone())));
             assert_eq!(date(b"-03330611"),   Ok((&[][..], value        )));
         }
-        assert_eq!(date(b"2018-02-29"), Err(Error(Code(&b"2018-02-29"[..], Verify))));
         assert_eq!(date(b"2016-02-29"), Ok((&[][..], Date::YMD(YmdDate {
             year: 2016,
             month: 2,
@@ -463,7 +422,6 @@ mod tests {
             week: 53,
             day: 1
         }))));
-        assert_eq!(date(b"2018-W53"), Err(Error(Code(&b"2018-W53"[..], Verify))));
     }
 
     #[test]
@@ -484,7 +442,6 @@ mod tests {
 
         assert_eq!(hour(b"02"), Ok((&[][..],  2)));
         assert_eq!(hour(b"24"), Ok((&[][..], 24)));
-        assert_eq!(hour(b"25"), Err(Error(Code(&b"25"[..], Verify))));
     }
 
     #[test]
@@ -493,7 +450,6 @@ mod tests {
 
         assert_eq!(minute(b"02"), Ok((&[][..],  2)));
         assert_eq!(minute(b"59"), Ok((&[][..], 59)));
-        assert_eq!(minute(b"60"), Err(Error(Code(&b"60"[..], Verify))));
     }
 
     #[test]
@@ -502,7 +458,6 @@ mod tests {
 
         assert_eq!(second(b"02"), Ok((&[][..],  2)));
         assert_eq!(second(b"60"), Ok((&[][..], 60)));
-        assert_eq!(second(b"61"), Err(Error(Code(&b"61"[..], Verify))));
     }
 
     #[test]
@@ -512,8 +467,6 @@ mod tests {
         assert_eq!(timezone_fixed(b"+23:59"), Ok((&[][..], 23 * 60 + 59)));
         assert_eq!(timezone_fixed(b"+2359"),  Ok((&[][..], 23 * 60 + 59)));
         assert_eq!(timezone_fixed(b"+23"),    Ok((&[][..], 23 * 60     )));
-        assert_eq!(timezone_fixed(b"+24:00"), Err(Error(Code(&b"24:00"[..], Verify))));
-        assert_eq!(timezone_fixed(b"-24:00"), Err(Error(Code(&b"24:00"[..], Verify))));
     }
 
     #[test]

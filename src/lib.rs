@@ -114,6 +114,63 @@ impl_year!(u16);
 impl_year!(u32);
 impl_year!(u64);
 
+pub trait Valid {
+    fn is_valid(&self) -> bool;
+}
+
+impl Valid for Date {
+    fn is_valid(&self) -> bool {
+        match self {
+            Date::YMD    (date) => date.is_valid(),
+            Date::Week   (date) => date.is_valid(),
+            Date::Ordinal(date) => date.is_valid()
+        }
+    }
+}
+
+impl Valid for YmdDate {
+    fn is_valid(&self) -> bool {
+        self.day >= 1 && self.day <= match self.month {
+            1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+            4 | 6 | 9 | 11              => 30,
+            2 => if self.year.is_leap() { 29 } else { 28 },
+            _ => return false
+        }
+    }
+}
+
+impl Valid for WeekDate {
+    fn is_valid(&self) -> bool {
+        self.week >= 1 && self.week <= self.year.num_weeks() &&
+        self.day >= 1 && self.day <= 7
+    }
+}
+
+impl Valid for OrdinalDate {
+    fn is_valid(&self) -> bool {
+        self.day >= 1 && self.day <= self.year.num_days()
+    }
+}
+
+impl Valid for Time {
+    /// Accepts leap seconds on any day
+    /// since they are not predictable.
+    fn is_valid(&self) -> bool {
+        self.hour <= 24 &&
+        self.minute <= 59 &&
+        self.second <= 60 &&
+        self.nanos < 1_000_000_000 &&
+        self.tz_offset < 24 * 60 && self.tz_offset > -24 * 60
+    }
+}
+
+impl Valid for DateTime {
+    fn is_valid(&self) -> bool {
+        self.date.is_valid() &&
+        self.time.is_valid()
+    }
+}
+
 impl From<Date> for YmdDate {
     fn from(date: Date) -> Self {
         match date {
@@ -381,5 +438,112 @@ mod tests {
                 day: 102
             }
         );
+    }
+
+    #[test]
+    fn valid_date_ymd() {
+        assert!(!YmdDate {
+            year: 0,
+            month: 13,
+            day: 1
+        }.is_valid());
+        assert!(!YmdDate {
+            year: 0,
+            month: 0,
+            day: 1
+        }.is_valid());
+
+        assert!(!YmdDate {
+            year: 2018,
+            month: 2,
+            day: 29
+        }.is_valid());
+    }
+
+    #[test]
+    fn valid_date_week() {
+        assert!(!WeekDate {
+            year: 0,
+            week: 0,
+            day: 1
+        }.is_valid());
+        assert!(!WeekDate {
+            year: 2018,
+            week: 53,
+            day: 1
+        }.is_valid());
+
+        assert!(!WeekDate {
+            year: 0,
+            week: 1,
+            day: 0
+        }.is_valid());
+        assert!(!WeekDate {
+            year: 0,
+            week: 1,
+            day: 8
+        }.is_valid());
+    }
+
+    #[test]
+    fn valid_date_ordinal() {
+        assert!(!OrdinalDate {
+            year: 2018,
+            day: 366
+        }.is_valid());
+        assert!(OrdinalDate {
+            year: 2020,
+            day: 366
+        }.is_valid());
+    }
+
+    #[test]
+    fn valid_time() {
+        assert!(!Time {
+            hour: 25,
+            minute: 0,
+            second: 0,
+            nanos: 0,
+            tz_offset: 0
+        }.is_valid());
+
+        assert!(!Time {
+            hour: 0,
+            minute: 60,
+            second: 0,
+            nanos: 0,
+            tz_offset: 0
+        }.is_valid());
+
+        assert!(!Time {
+            hour: 0,
+            minute: 1,
+            second: 61,
+            nanos: 0,
+            tz_offset: 0
+        }.is_valid());
+
+        assert!(!Time {
+            hour: 0,
+            minute: 1,
+            second: 0,
+            nanos: 1_000_000_000,
+            tz_offset: 0
+        }.is_valid());
+
+        assert!(!Time {
+            hour: 0,
+            minute: 1,
+            second: 0,
+            nanos: 0,
+            tz_offset: 24 * 60
+        }.is_valid());
+        assert!(!Time {
+            hour: 0,
+            minute: 1,
+            second: 0,
+            nanos: 0,
+            tz_offset: -24 * 60
+        }.is_valid());
     }
 }
