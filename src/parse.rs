@@ -279,208 +279,174 @@ mod tests {
     use {Date, YmdDate, WeekDate, OrdinalDate, Time, DateTime};
 
     #[test]
-    fn parse_sign() {
-        use super::sign;
-
-        assert_eq!(sign(b"-"), Ok((&[][..], -1)));
-        assert_eq!(sign(b"+"), Ok((&[][..],  1)));
-        assert_eq!(sign(b"" ), Err(Incomplete(Size(1))));
-        assert_eq!(sign(b" "), Err(Error(Code(&b" "[..], Alt))));
+    fn sign() {
+        assert_eq!(super::sign(b"-"), Ok((&[][..], -1)));
+        assert_eq!(super::sign(b"+"), Ok((&[][..],  1)));
+        assert_eq!(super::sign(b"" ), Err(Incomplete(Size(1))));
+        assert_eq!(super::sign(b" "), Err(Error(Code(&b" "[..], Alt))));
     }
 
     #[test]
-    fn parse_positive_year() {
-        use super::positive_year;
-
-        assert_eq!(positive_year(b"2018"), Ok((&[][..], 2018)));
+    fn positive_year() {
+        assert_eq!(super::positive_year(b"2018"), Ok((&[][..], 2018)));
     }
 
     #[test]
-    fn parse_year() {
-        use super::year;
-
-        assert_eq!(year(b"2018" ), Ok((&[][..],  2018)));
-        assert_eq!(year(b"+2018"), Ok((&[][..],  2018)));
-        assert_eq!(year(b"-2018"), Ok((&[][..], -2018)));
+    fn year() {
+        assert_eq!(super::year(b"2018" ), Ok((&[][..],  2018)));
+        assert_eq!(super::year(b"+2018"), Ok((&[][..],  2018)));
+        assert_eq!(super::year(b"-2018"), Ok((&[][..], -2018)));
     }
 
     #[test]
-    fn parse_month() {
-        use super::month;
-
-        assert_eq!(month(b"06"), Ok((&[][..],  6)));
-        assert_eq!(month(b"12"), Ok((&[][..], 12)));
+    fn month() {
+        assert_eq!(super::month(b"06"), Ok((&[][..],  6)));
+        assert_eq!(super::month(b"12"), Ok((&[][..], 12)));
     }
 
     #[test]
-    fn parse_year_week() {
-        use super::year_week;
-
-        assert_eq!(year_week(b"01"), Ok((&[][..], 1)));
+    fn year_week() {
+        assert_eq!(super::year_week(b"01"), Ok((&[][..], 1)));
     }
 
     #[test]
-    fn parse_year_day() {
-        use super::year_day;
-
-        assert_eq!(year_day(b"001"),  Ok((&[][..],     1)));
-        assert_eq!(year_day(b"011"),  Ok((&[][..],    11)));
-        assert_eq!(year_day(b"111"),  Ok((&[][..],   111)));
-        assert_eq!(year_day(b"1111"), Ok((&b"1"[..], 111)));
+    fn year_day() {
+        assert_eq!(super::year_day(b"001"),  Ok((&[][..],     1)));
+        assert_eq!(super::year_day(b"011"),  Ok((&[][..],    11)));
+        assert_eq!(super::year_day(b"111"),  Ok((&[][..],   111)));
+        assert_eq!(super::year_day(b"1111"), Ok((&b"1"[..], 111)));
     }
 
     #[test]
-    fn parse_day() {
-        use super::day;
-
-        assert_eq!(day(b"18"), Ok((&[][..], 18)));
+    fn day() {
+        assert_eq!(super::day(b"18"), Ok((&[][..], 18)));
     }
 
     #[test]
-    fn parse_week_day() {
-        use super::week_day;
-
-        assert_eq!(week_day(b"1"), Ok((&[][..], 1)));
-        assert_eq!(week_day(b"2"), Ok((&[][..], 2)));
-        assert_eq!(week_day(b"3"), Ok((&[][..], 3)));
-        assert_eq!(week_day(b"4"), Ok((&[][..], 4)));
-        assert_eq!(week_day(b"5"), Ok((&[][..], 5)));
-        assert_eq!(week_day(b"6"), Ok((&[][..], 6)));
-        assert_eq!(week_day(b"7"), Ok((&[][..], 7)));
+    fn week_day() {
+        assert_eq!(super::week_day(b"1"), Ok((&[][..], 1)));
+        assert_eq!(super::week_day(b"2"), Ok((&[][..], 2)));
+        assert_eq!(super::week_day(b"3"), Ok((&[][..], 3)));
+        assert_eq!(super::week_day(b"4"), Ok((&[][..], 4)));
+        assert_eq!(super::week_day(b"5"), Ok((&[][..], 5)));
+        assert_eq!(super::week_day(b"6"), Ok((&[][..], 6)));
+        assert_eq!(super::week_day(b"7"), Ok((&[][..], 7)));
     }
 
     #[test]
-    fn parse_date() {
-        use super::date;
-
+    fn date_ymd() {
         {
-            let value = Date::YMD(YmdDate {
+            let value = YmdDate {
                 year: 2015,
                 month: 7,
                 day: 16
-            });
-            assert_eq!(date(b"2015-07-16"), Ok((&[][..], value.clone())));
-            assert_eq!(date(b"20150716"),   Ok((&[][..], value        )));
+            };
+            assert_eq!(super::date_ymd(b"2015-07-16"), Ok((&[][..], value.clone())));
+            assert_eq!(super::date_ymd(b"20150716"),   Ok((&[][..], value        )));
         }
         {
-            let value = Date::YMD(YmdDate {
+            let value = YmdDate {
                 year: -333,
                 month: 6,
                 day: 11
-            });
-            assert_eq!(date(b"-0333-06-11"), Ok((&[][..], value.clone())));
-            assert_eq!(date(b"-03330611"),   Ok((&[][..], value        )));
+            };
+            assert_eq!(super::date_ymd(b"-0333-06-11"), Ok((&[][..], value.clone())));
+            assert_eq!(super::date_ymd(b"-03330611"),   Ok((&[][..], value        )));
         }
-        assert_eq!(date(b"2016-02-29"), Ok((&[][..], Date::YMD(YmdDate {
+        assert_eq!(super::date_ymd(b"2016-02-29"), Ok((&[][..], YmdDate {
             year: 2016,
             month: 2,
             day: 29
-        }))));
-        assert_eq!(date(b"2016-02"), Ok((&[][..], Date::YMD(YmdDate {
+        })));
+        assert_eq!(super::date_ymd(b"2016-02"), Ok((&[][..], YmdDate {
             year: 2016,
             month: 2,
             day: 1
-        }))));
-        assert_eq!(date(b"2016"), Ok((&[][..], Date::YMD(YmdDate {
+        })));
+        assert_eq!(super::date_ymd(b"2016"), Ok((&[][..], YmdDate {
             year: 2016,
             month: 1,
             day: 1
-        }))));
-        assert_eq!(date(b"20"), Ok((&[][..], Date::YMD(YmdDate {
+        })));
+        assert_eq!(super::date_ymd(b"20"), Ok((&[][..], YmdDate {
             year: 2000,
             month: 1,
             day: 1
-        }))));
+        })));
     }
 
     #[test]
-    fn parse_date_week() {
-        use super::date;
-
-        assert_eq!(date(b"2018-W01-1"), Ok((&[][..], Date::Week(WeekDate {
+    fn date_week() {
+        assert_eq!(super::date_week(b"2018-W01-1"), Ok((&[][..], WeekDate {
             year: 2018,
             week: 1,
             day: 1
-        }))));
-        assert_eq!(date(b"2018-W52-7"), Ok((&[][..], Date::Week(WeekDate {
+        })));
+        assert_eq!(super::date_week(b"2018-W52-7"), Ok((&[][..], WeekDate {
             year: 2018,
             week: 52,
             day: 7
-        }))));
-        assert_eq!(date(b"2018W223"), Ok((&[][..], Date::Week(WeekDate {
+        })));
+        assert_eq!(super::date_week(b"2018W223"), Ok((&[][..], WeekDate {
             year: 2018,
             week: 22,
             day: 3
-        }))));
-        assert_eq!(date(b"2018W22"), Ok((&[][..], Date::Week(WeekDate {
+        })));
+        assert_eq!(super::date_week(b"2018W22"), Ok((&[][..], WeekDate {
             year: 2018,
             week: 22,
             day: 1
-        }))));
-        assert_eq!(date(b"2020-W53"), Ok((&[][..], Date::Week(WeekDate {
+        })));
+        assert_eq!(super::date_week(b"2020-W53"), Ok((&[][..], WeekDate {
             year: 2020,
             week: 53,
             day: 1
-        }))));
+        })));
     }
 
     #[test]
-    fn parse_date_ordinal() {
-        use super::date;
-
-        let value = Date::Ordinal(OrdinalDate {
+    fn date_ordinal() {
+        let value = OrdinalDate {
             year: 1985,
             day: 102
-        });
-        assert_eq!(date(b"1985-102"), Ok((&[][..], value.clone())));
-        assert_eq!(date(b"1985102"),  Ok((&[][..], value        )));
+        };
+        assert_eq!(super::date_ordinal(b"1985-102"), Ok((&[][..], value.clone())));
+        assert_eq!(super::date_ordinal(b"1985102"),  Ok((&[][..], value        )));
     }
 
     #[test]
-    fn parse_hour() {
-        use super::hour;
-
-        assert_eq!(hour(b"02"), Ok((&[][..],  2)));
-        assert_eq!(hour(b"24"), Ok((&[][..], 24)));
+    fn hour() {
+        assert_eq!(super::hour(b"02"), Ok((&[][..],  2)));
+        assert_eq!(super::hour(b"24"), Ok((&[][..], 24)));
     }
 
     #[test]
-    fn parse_minute() {
-        use super::minute;
-
-        assert_eq!(minute(b"02"), Ok((&[][..],  2)));
-        assert_eq!(minute(b"59"), Ok((&[][..], 59)));
+    fn minute() {
+        assert_eq!(super::minute(b"02"), Ok((&[][..],  2)));
+        assert_eq!(super::minute(b"59"), Ok((&[][..], 59)));
     }
 
     #[test]
-    fn parse_second() {
-        use super::second;
-
-        assert_eq!(second(b"02"), Ok((&[][..],  2)));
-        assert_eq!(second(b"60"), Ok((&[][..], 60)));
+    fn second() {
+        assert_eq!(super::second(b"02"), Ok((&[][..],  2)));
+        assert_eq!(super::second(b"60"), Ok((&[][..], 60)));
     }
 
     #[test]
-    fn parse_timezone_fixed() {
-        use super::timezone_fixed;
-
-        assert_eq!(timezone_fixed(b"+23:59"), Ok((&[][..], 23 * 60 + 59)));
-        assert_eq!(timezone_fixed(b"+2359"),  Ok((&[][..], 23 * 60 + 59)));
-        assert_eq!(timezone_fixed(b"+23"),    Ok((&[][..], 23 * 60     )));
+    fn timezone_fixed() {
+        assert_eq!(super::timezone_fixed(b"+23:59"), Ok((&[][..], 23 * 60 + 59)));
+        assert_eq!(super::timezone_fixed(b"+2359"),  Ok((&[][..], 23 * 60 + 59)));
+        assert_eq!(super::timezone_fixed(b"+23"),    Ok((&[][..], 23 * 60     )));
     }
 
     #[test]
-    fn parse_timezone_utc() {
-        use super::timezone_utc;
-
-        assert_eq!(timezone_utc(b"Z"), Ok((&[][..], 0)));
-        assert_eq!(timezone_utc(b"z"), Err(Error(Code(&b"z"[..], Char))));
+    fn timezone_utc() {
+        assert_eq!(super::timezone_utc(b"Z"), Ok((&[][..], 0)));
+        assert_eq!(super::timezone_utc(b"z"), Err(Error(Code(&b"z"[..], Char))));
     }
 
     #[test]
-    fn parse_time() {
-        use super::time;
-
+    fn time() {
         {
             let value = Time {
                 hour: 16,
@@ -489,8 +455,8 @@ mod tests {
                 nanos: 0,
                 tz_offset: 0
             };
-            assert_eq!(time(b"16:43:52"), Ok((&[][..], value.clone())));
-            assert_eq!(time(b"164352"),   Ok((&[][..], value        )));
+            assert_eq!(super::time(b"16:43:52"), Ok((&[][..], value.clone())));
+            assert_eq!(super::time(b"164352"),   Ok((&[][..], value        )));
         }
         {
             let value = Time {
@@ -500,10 +466,10 @@ mod tests {
                 nanos: 0,
                 tz_offset: 0
             };
-            assert_eq!(time(b"16:43"), Ok((&[][..], value.clone())));
-            assert_eq!(time(b"1643"),  Ok((&[][..], value        )));
+            assert_eq!(super::time(b"16:43"), Ok((&[][..], value.clone())));
+            assert_eq!(super::time(b"1643"),  Ok((&[][..], value        )));
         }
-        assert_eq!(time(b"16"), Ok((&[][..], Time {
+        assert_eq!(super::time(b"16"), Ok((&[][..], Time {
             hour: 16,
             minute: 0,
             second: 0,
@@ -513,9 +479,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_time_precision() {
-        use super::time;
-
+    fn time_precision() {
         {
             let value = Time {
                 hour: 16,
@@ -524,51 +488,51 @@ mod tests {
                 nanos: 0,
                 tz_offset: 0
             };
-            assert_eq!(time(b"16:43:52.1"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52.1"), Ok((&[][..], Time {
                 nanos: 100_000_000,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52,01"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52,01"), Ok((&[][..], Time {
                 nanos: 10_000_000,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52.001"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52.001"), Ok((&[][..], Time {
                 nanos: 1_000_000,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52,0001"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52,0001"), Ok((&[][..], Time {
                 nanos: 100_000,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52.00001"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52.00001"), Ok((&[][..], Time {
                 nanos: 10_000,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52,000001"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52,000001"), Ok((&[][..], Time {
                 nanos: 1_000,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52.0000001"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52.0000001"), Ok((&[][..], Time {
                 nanos: 100,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52,00000001"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52,00000001"), Ok((&[][..], Time {
                 nanos: 10,
                 ..value
             })));
-            assert_eq!(time(b"16:43:52.000000001"), Ok((&[][..], Time {
+            assert_eq!(super::time(b"16:43:52.000000001"), Ok((&[][..], Time {
                 nanos: 1,
                 ..value
             })));
         }
-        assert_eq!(time(b"16:43.1234567891"), Ok((&[][..], Time {
+        assert_eq!(super::time(b"16:43.1234567891"), Ok((&[][..], Time {
             hour: 16,
             minute: 43,
             second: 7,
             nanos: 407_407_346,
             tz_offset: 0
         })));
-        assert_eq!(time(b"16.12345678901"), Ok((&[][..], Time {
+        assert_eq!(super::time(b"16.12345678901"), Ok((&[][..], Time {
             hour: 16,
             minute: 7,
             second: 24,
@@ -579,22 +543,20 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn parse_time_precision_panic() {
+    fn time_precision_panic() {
         super::time(b"16:43:52.0000000001").unwrap();
     }
 
     #[test]
-    fn parse_time_with_timezone() {
-        use super::time;
-
-        assert_eq!(time(b"16:43:52Z"), Ok((&[][..], Time {
+    fn time_with_timezone() {
+        assert_eq!(super::time(b"16:43:52Z"), Ok((&[][..], Time {
             hour: 16,
             minute: 43,
             second: 52,
             nanos: 0,
             tz_offset: 0
         })));
-        assert_eq!(time(b"16:43:52.1Z"), Ok((&[][..], Time {
+        assert_eq!(super::time(b"16:43:52.1Z"), Ok((&[][..], Time {
             hour: 16,
             minute: 43,
             second: 52,
@@ -609,17 +571,17 @@ mod tests {
                 nanos: 0,
                 tz_offset: 5 * 60
             };
-            assert_eq!(time(b"16:43:52+05"),   Ok((&[][..], value.clone())));
-            assert_eq!(time(b"16:43:52+0500"), Ok((&[][..], value        )));
+            assert_eq!(super::time(b"16:43:52+05"),   Ok((&[][..], value.clone())));
+            assert_eq!(super::time(b"16:43:52+0500"), Ok((&[][..], value        )));
         }
-        assert_eq!(time(b"16:43-05:32"), Ok((&[][..], Time {
+        assert_eq!(super::time(b"16:43-05:32"), Ok((&[][..], Time {
             hour: 16,
             minute: 43,
             second: 0,
             nanos: 0,
             tz_offset: -(5 * 60 + 32)
         })));
-        assert_eq!(time(b"16:43+23:59"), Ok((&[][..], Time {
+        assert_eq!(super::time(b"16:43+23:59"), Ok((&[][..], Time {
             hour: 16,
             minute: 43,
             second: 0,
@@ -629,9 +591,7 @@ mod tests {
     }
 
     #[test]
-    fn parse_datetime() {
-        use super::datetime;
-
+    fn datetime() {
         let value = DateTime {
             date: Date::YMD(YmdDate {
                 year: 2007,
@@ -646,7 +606,7 @@ mod tests {
                 tz_offset: 5 * 60
             }
         };
-        assert_eq!(datetime(b"2007-08-31T16:47:22+05:00"), Ok((&[][..], value.clone())));
-        assert_eq!(datetime(b"20070831T164722+05"),        Ok((&[][..], value        )));
+        assert_eq!(super::datetime(b"2007-08-31T16:47:22+05:00"), Ok((&[][..], value.clone())));
+        assert_eq!(super::datetime(b"20070831T164722+05"),        Ok((&[][..], value        )));
     }
 }
