@@ -9,34 +9,34 @@ pub use parse::*;
 use std::convert::From;
 use std::str::FromStr;
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Date<Y: Year = i16> {
     YMD(YmdDate<Y>),
     Week(WeekDate<Y>),
     Ordinal(OrdinalDate<Y>)
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct YmdDate<Y: Year = i16> {
     year: Y,
     month: u8,
     day: u8
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct WeekDate<Y: Year = i16> {
     year: Y,
     week: u8,
     day: u8
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct OrdinalDate<Y: Year = i16> {
     year: Y,
     day: u16
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Time {
     pub hour: u8,
     pub minute: u8,
@@ -46,7 +46,7 @@ pub struct Time {
     pub tz_offset: i16
 }
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct DateTime<Y: Year = i16> {
     pub date: Date<Y>,
     pub time: Time
