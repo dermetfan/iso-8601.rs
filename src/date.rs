@@ -136,7 +136,7 @@ impl From<OrdinalDate> for YmdDate {
             305 ... 334         => (11, date.day - 304),
             336 ... 366 if leap => (12, date.day - 335),
             335 ... 365         => (12, date.day - 334),
-            _ => unreachable!()
+            day @ _ => panic!("invalid day: {:?}", day)
         };
 
         Self {
