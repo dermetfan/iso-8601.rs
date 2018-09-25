@@ -50,45 +50,62 @@ named!(week_day <&[u8], u8>, map!(
     buf_to_int
 ));
 
-named!(pub date_ymd <&[u8], YmdDate>, alt_complete!(
-    do_parse!(
-        year: year >>
-        month_day: opt!(complete!(do_parse!(
-            opt!(char!('-')) >>
-            month: month >>
-            day: opt!(complete!(do_parse!(
-                opt!(char!('-')) >>
-                day: day >>
-                (day)
-            ))) >>
-            ((
-                month,
-                day.unwrap_or(1)
-            ))
-        ))) >>
-        (YmdDate {
-            year,
-            month: month_day.map(|x| x.0).unwrap_or(1),
-            day:   month_day.map(|x| x.1).unwrap_or(1)
-        })
-    ) |
-    do_parse!(
-        century: century >>
-        (YmdDate {
-            year: century as i16 * 100,
-            month: 1,
-            day: 1
-        })
-    )
+named!(date_ymd_basic_accuracy_month <&[u8], YmdDate>, do_parse!(
+    year: year >>
+    char!('-') >>
+    month: month >>
+    (YmdDate {
+        year, month,
+        day: 1
+    })
 ));
 
-named!(pub date_week <&[u8], WeekDate>, do_parse!(
+named!(date_ymd_basic_accuracy_year <&[u8], YmdDate>, do_parse!(
     year: year >>
-    opt!(char!('-')) >>
+    (YmdDate {
+        year,
+        month: 1,
+        day: 1
+    })
+));
+
+named!(date_ymd_basic_accuracy_century <&[u8], YmdDate>, do_parse!(
+    century: century >>
+    (YmdDate {
+        year: century as i16 * 100,
+        month: 1,
+        day: 1
+    })
+));
+
+named_args!(date_ymd_format(extended: bool) <&[u8], YmdDate>, do_parse!(
+    year: year >>
+    cond!(extended, char!('-')) >>
+    month: month >>
+    cond!(extended, char!('-')) >>
+    day: day >>
+    (YmdDate { year, month, day })
+));
+
+named!(date_ymd_basic <&[u8], YmdDate>, apply!(date_ymd_format, false));
+
+named!(date_ymd_extended <&[u8], YmdDate>, apply!(date_ymd_format, true));
+
+named!(pub date_ymd <&[u8], YmdDate>, alt_complete!(
+    date_ymd_extended |
+    date_ymd_basic |
+    date_ymd_basic_accuracy_month |
+    date_ymd_basic_accuracy_year |
+    date_ymd_basic_accuracy_century
+));
+
+named_args!(date_week_format(extended: bool) <&[u8], WeekDate>, do_parse!(
+    year: year >>
+    cond!(extended, char!('-')) >>
     char!('W') >>
     week: year_week >>
     day: opt!(complete!(do_parse!(
-        opt!(char!('-')) >>
+        cond!(extended, char!('-')) >>
         day: week_day >>
         (day)
     ))) >>
@@ -98,9 +115,18 @@ named!(pub date_week <&[u8], WeekDate>, do_parse!(
     })
 ));
 
-named!(pub date_ordinal <&[u8], OrdinalDate>, do_parse!(
+named!(date_week_basic <&[u8], WeekDate>, apply!(date_week_format, false));
+
+named!(date_week_extended <&[u8], WeekDate>, apply!(date_week_format, true));
+
+named!(pub date_week <&[u8], WeekDate>, alt!(
+   date_week_extended |
+   date_week_basic
+));
+
+named_args!(date_ordinal_format(extended: bool) <&[u8], OrdinalDate>, do_parse!(
     year: year >>
-    opt!(char!('-')) >>
+    cond!(extended, char!('-')) >>
     day: year_day >>
     (OrdinalDate {
         year,
@@ -108,18 +134,46 @@ named!(pub date_ordinal <&[u8], OrdinalDate>, do_parse!(
     })
 ));
 
-named!(pub date <&[u8], Date>, alt!(
+named!(date_ordinal_basic <&[u8], OrdinalDate>, apply!(date_ordinal_format, false));
+
+named!(date_ordinal_extended <&[u8], OrdinalDate>, apply!(date_ordinal_format, true));
+
+named!(pub date_ordinal <&[u8], OrdinalDate>, alt!(
+    date_ordinal_extended |
+    date_ordinal_basic
+));
+
+named!(pub date <&[u8], Date>, alt_complete!(
     do_parse!(
         date: date_week >>
         (Date::Week(date))
     ) |
     do_parse!(
-        peek!(re_bytes_match!(r"^\d{4}-?\d{3}$")) >>
-        date: date_ordinal >>
+        date: date_ymd_extended >>
+        (Date::YMD(date))
+    ) |
+    do_parse!(
+        date: date_ordinal_extended >>
         (Date::Ordinal(date))
     ) |
     do_parse!(
-        date: date_ymd >>
+        date: date_ymd_basic >>
+        (Date::YMD(date))
+    ) |
+    do_parse!(
+        date: date_ordinal_basic >>
+        (Date::Ordinal(date))
+    ) |
+    do_parse!(
+        date: date_ymd_basic_accuracy_month >>
+        (Date::YMD(date))
+    ) |
+    do_parse!(
+        date: date_ymd_basic_accuracy_year >>
+        (Date::YMD(date))
+    ) |
+    do_parse!(
+        date: date_ymd_basic_accuracy_century >>
         (Date::YMD(date))
     )
 ));
@@ -258,21 +312,33 @@ mod tests {
 
     #[test]
     fn date() {
-        assert_eq!(super::date(b"2018-02-12"), Ok((&[][..], Date::YMD(YmdDate {
-            year: 2018,
-            month: 2,
-            day: 12
-        }))));
+        {
+            let value = Date::YMD(YmdDate {
+                year: 2018,
+                month: 2,
+                day: 12
+            });
+            assert_eq!(super::date(b"2018-02-12"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date(b"2018-02-12 "), Ok((&b" "[..], value        )));
+        }
 
-        assert_eq!(super::date(b"2018-W02-2"), Ok((&[][..], Date::Week(WeekDate {
-            year: 2018,
-            week: 2,
-            day: 2
-        }))));
+        {
+            let value = Date::Week(WeekDate {
+                year: 2018,
+                week: 2,
+                day: 2
+            });
+            assert_eq!(super::date(b"2018-W02-2"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date(b"2018-W02-2 "), Ok((&b" "[..], value        )));
+        }
 
-        assert_eq!(super::date(b"2018-102"), Ok((&[][..], Date::Ordinal(OrdinalDate {
-            year: 2018,
-            day: 102
-        }))));
+        {
+            let value = Date::Ordinal(OrdinalDate {
+                year: 2018,
+                day: 102
+            });
+            assert_eq!(super::date(b"2018-102"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date(b"2018-102 "), Ok((&b" "[..], value        )));
+        }
     }
 }

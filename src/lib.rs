@@ -1,5 +1,4 @@
 #[macro_use] extern crate nom;
-extern crate regex;
 
 macro_rules! impl_fromstr_parse {
     ($ty:ty, $func:ident) => {
