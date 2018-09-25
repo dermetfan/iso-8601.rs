@@ -44,11 +44,14 @@ impl Valid for Time {
     /// since they are not predictable.
     fn is_valid(&self) -> bool {
         is_valid_local(self) &&
-        self.timezone > -24 * 60 && self.timezone <  24 * 60
+        self.timezone > -24 * 60 &&
+        self.timezone <  24 * 60
     }
 }
 
 impl Valid for LocalTime {
+    /// Accepts leap seconds on any day
+    /// since they are not predictable.
     fn is_valid(&self) -> bool {
         is_valid_local(self)
     }

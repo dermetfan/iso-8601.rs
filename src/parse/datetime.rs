@@ -11,8 +11,10 @@ named!(pub datetime <&[u8], DateTime>, do_parse!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::time::*;
-    use ::date::*;
+    use ::{
+        time::*,
+        date::*
+    };
 
     #[test]
     fn datetime() {
