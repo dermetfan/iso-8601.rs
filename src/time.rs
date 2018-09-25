@@ -5,23 +5,136 @@ use {
 };
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub struct Time<Tz: TimeZone = i16> {
+pub struct LocalTime {
     pub hour: u8,
     pub minute: u8,
     pub second: u8,
-    pub nanos: u32,
-    pub timezone: Tz
+    pub nanos: u32
 }
 
-pub type LocalTime = Time<()>;
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct GlobalTime {
+    pub local: LocalTime,
+    /// Offset from UTC in minutes.
+    pub timezone: i16
+}
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum AnyTime {
-    Global(Time),
+    Global(GlobalTime),
     Local(LocalTime)
 }
 
-impl FromStr for Time {
+pub trait Time {
+    fn hour(&self) -> u8;
+    fn minute(&self) -> u8;
+    fn second(&self) -> u8;
+    fn nanos(&self) -> u32;
+    fn timezone(&self) -> Option<i16>;
+}
+
+impl Time for LocalTime {
+    fn hour(&self) -> u8 {
+        self.hour
+    }
+
+    fn minute(&self) -> u8 {
+        self.minute
+    }
+
+    fn second(&self) -> u8 {
+        self.second
+    }
+
+    fn nanos(&self) -> u32 {
+        self.nanos
+    }
+
+    fn timezone(&self) -> Option<i16> {
+        None
+    }
+}
+
+impl Time for GlobalTime {
+    fn hour(&self) -> u8 {
+        self.local.hour
+    }
+
+    fn minute(&self) -> u8 {
+        self.local.minute
+    }
+
+    fn second(&self) -> u8 {
+        self.local.second
+    }
+
+    fn nanos(&self) -> u32 {
+        self.local.nanos
+    }
+
+    fn timezone(&self) -> Option<i16> {
+        Some(self.timezone)
+    }
+}
+
+impl Time for AnyTime {
+    fn hour(&self) -> u8 {
+        match self {
+            AnyTime::Global(time) => time.hour(),
+            AnyTime::Local (time) => time.hour()
+        }
+    }
+
+    fn minute(&self) -> u8 {
+        match self {
+            AnyTime::Global(time) => time.minute(),
+            AnyTime::Local (time) => time.minute()
+        }
+    }
+
+    fn second(&self) -> u8 {
+        match self {
+            AnyTime::Global(time) => time.second(),
+            AnyTime::Local (time) => time.second()
+        }
+    }
+
+    fn nanos(&self) -> u32 {
+        match self {
+            AnyTime::Global(time) => time.nanos(),
+            AnyTime::Local (time) => time.nanos()
+        }
+    }
+
+    fn timezone(&self) -> Option<i16> {
+        match self {
+            AnyTime::Global(time) => time.timezone(),
+            AnyTime::Local (time) => time.timezone()
+        }
+    }
+}
+
+impl FromStr for LocalTime {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse::time_local(s.as_bytes())
+            .map(|x| x.1)
+            .or(Err(()))
+    }
+}
+
+impl FromStr for GlobalTime {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse::time_global(s.as_bytes())
+            .map(|x| x.1)
+            .or(Err(()))
+    }
+}
+
+impl FromStr for AnyTime {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -31,39 +144,33 @@ impl FromStr for Time {
     }
 }
 
-fn is_valid_local<Tz>(time: &Time<Tz>) -> bool
-where Tz: TimeZone {
-    time.hour <= 24 &&
-    time.minute <= 59 &&
-    time.second <= 60 &&
-    time.nanos < 1_000_000_000
-}
-
-impl Valid for Time {
+impl Valid for LocalTime {
     /// Accepts leap seconds on any day
     /// since they are not predictable.
     fn is_valid(&self) -> bool {
-        is_valid_local(self) &&
+        self.hour <= 24 &&
+        self.minute <= 59 &&
+        self.second <= 60 &&
+        self.nanos < 1_000_000_000
+    }
+}
+
+impl Valid for GlobalTime {
+    fn is_valid(&self) -> bool {
+        self.local.is_valid() &&
         self.timezone > -24 * 60 &&
         self.timezone <  24 * 60
     }
 }
 
-impl Valid for LocalTime {
-    /// Accepts leap seconds on any day
-    /// since they are not predictable.
+impl Valid for AnyTime {
     fn is_valid(&self) -> bool {
-        is_valid_local(self)
+        match self {
+            AnyTime::Global(time) => time.is_valid(),
+            AnyTime::Local (time) => time.is_valid()
+        }
     }
 }
-
-pub trait TimeZone {}
-
-/// Offset from UTC in minutes.
-impl TimeZone for i16 {}
-
-/// Local time.
-impl TimeZone for () {}
 
 #[cfg(test)]
 mod tests {
@@ -75,49 +182,49 @@ mod tests {
             hour: 25,
             minute: 0,
             second: 0,
-            nanos: 0,
-            timezone: ()
+            nanos: 0
         }.is_valid());
 
         assert!(!LocalTime {
             hour: 0,
             minute: 60,
             second: 0,
-            nanos: 0,
-            timezone: ()
+            nanos: 0
         }.is_valid());
 
         assert!(!LocalTime {
             hour: 0,
             minute: 1,
             second: 61,
-            nanos: 0,
-            timezone: ()
+            nanos: 0
         }.is_valid());
 
         assert!(!LocalTime {
             hour: 0,
             minute: 1,
             second: 0,
-            nanos: 1_000_000_000,
-            timezone: ()
+            nanos: 1_000_000_000
         }.is_valid());
     }
 
     #[test]
-    fn valid_time() {
-        assert!(!Time {
-            hour: 0,
-            minute: 1,
-            second: 0,
-            nanos: 0,
+    fn valid_time_global() {
+        assert!(!GlobalTime {
+            local: LocalTime {
+                hour: 0,
+                minute: 1,
+                second: 0,
+                nanos: 0
+            },
             timezone: 24 * 60
         }.is_valid());
-        assert!(!Time {
-            hour: 0,
-            minute: 1,
-            second: 0,
-            nanos: 0,
+        assert!(!GlobalTime {
+            local: LocalTime {
+                hour: 0,
+                minute: 1,
+                second: 0,
+                nanos: 0
+            },
             timezone: -24 * 60
         }.is_valid());
     }
