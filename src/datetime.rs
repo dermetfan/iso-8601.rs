@@ -7,9 +7,10 @@ use {
 };
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub struct DateTime<Y: Year = i16> {
+pub struct DateTime<Y = i16, Tz = i16>
+where Y: Year, Tz: TimeZone {
     pub date: Date<Y>,
-    pub time: Time
+    pub time: Time<Tz>
 }
 
 impl FromStr for DateTime {

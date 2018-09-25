@@ -69,7 +69,8 @@ named!(time_naive <&[u8], LocalTime>, do_parse!(
         hour,
         minute: minute_second_nanos.0,
         second: minute_second_nanos.1,
-        nanos:  minute_second_nanos.2 as u32
+        nanos:  minute_second_nanos.2 as u32,
+        timezone: ()
     })
 ));
 
@@ -80,12 +81,26 @@ named!(pub time_local <&[u8], LocalTime>, do_parse!(
 ));
 
 named!(pub time <&[u8], Time>, do_parse!(
-    local: time_naive >>
-    tz_offset: complete!(timezone) >>
+    time: time_naive >>
+    timezone: complete!(timezone) >>
     (Time {
-        local: local,
-        tz_offset: tz_offset
+        hour: time.hour,
+        minute: time.minute,
+        second: time.second,
+        nanos: time.nanos,
+        timezone: timezone
     })
+));
+
+named!(pub time_any <&[u8], AnyTime>, alt!(
+    do_parse!(
+        time: time >>
+        (AnyTime::Global(time))
+    ) |
+    do_parse!(
+        time: time_local >>
+        (AnyTime::Local(time))
+    )
 ));
 
 named!(timezone_utc <&[u8], i16>, map!(
@@ -152,7 +167,8 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 52,
-                nanos: 0
+                nanos: 0,
+                timezone: ()
             };
             assert_eq!(super::time_naive(b"16:43:52"), Ok((&[][..], value.clone())));
             assert_eq!(super::time_naive(b"164352"),   Ok((&[][..], value        )));
@@ -162,7 +178,8 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 0,
-                nanos: 0
+                nanos: 0,
+                timezone: ()
             };
             assert_eq!(super::time_naive(b"16:43"), Ok((&[][..], value.clone())));
             assert_eq!(super::time_naive(b"1643"),  Ok((&[][..], value        )));
@@ -171,7 +188,8 @@ mod tests {
             hour: 16,
             minute: 0,
             second: 0,
-            nanos: 0
+            nanos: 0,
+            timezone: ()
         })));
     }
 
@@ -182,7 +200,8 @@ mod tests {
                 hour: 16,
                 minute: 43,
                 second: 52,
-                nanos: 0
+                nanos: 0,
+                timezone: ()
             };
             assert_eq!(super::time_naive(b"16:43:52.1"), Ok((&[][..], LocalTime {
                 nanos: 100_000_000,
@@ -225,13 +244,15 @@ mod tests {
             hour: 16,
             minute: 43,
             second: 7,
-            nanos: 407_407_346
+            nanos: 407_407_346,
+            timezone: ()
         })));
         assert_eq!(super::time_naive(b"16.12345678901"), Ok((&[][..], LocalTime {
             hour: 16,
             minute: 7,
             second: 24,
-            nanos: 444_440_436
+            nanos: 444_440_436,
+            timezone: ()
         })));
     }
 
@@ -247,7 +268,8 @@ mod tests {
             hour: 2,
             minute: 22,
             second: 22,
-            nanos: 0
+            nanos: 0,
+            timezone: ()
         };
         assert_eq!(super::time_local(b"T02:22:22"), Ok((&[][..], value.clone())));
         assert_eq!(super::time_local(b"02:22:22"),  Ok((&[][..], value.clone())));
@@ -258,53 +280,84 @@ mod tests {
     #[test]
     fn time() {
         assert_eq!(super::time(b"16:43:52Z"), Ok((&[][..], Time {
-            local: LocalTime {
-                hour: 16,
-                minute: 43,
-                second: 52,
-                nanos: 0
-            },
-            tz_offset: 0
+            hour: 16,
+            minute: 43,
+            second: 52,
+            nanos: 0,
+            timezone: 0
         })));
         assert_eq!(super::time(b"16:43:52.1Z"), Ok((&[][..], Time {
-            local: LocalTime {
-                hour: 16,
-                minute: 43,
-                second: 52,
-                nanos: 100_000_000
-            },
-            tz_offset: 0
+            hour: 16,
+            minute: 43,
+            second: 52,
+            nanos: 100_000_000,
+            timezone: 0
         })));
         {
             let value = Time {
-                local: LocalTime {
-                    hour: 16,
-                    minute: 43,
-                    second: 52,
-                    nanos: 0
-                },
-                tz_offset: 5 * 60
+                hour: 16,
+                minute: 43,
+                second: 52,
+                nanos: 0,
+                timezone: 5 * 60
             };
             assert_eq!(super::time(b"16:43:52+05"),   Ok((&[][..], value.clone())));
             assert_eq!(super::time(b"16:43:52+0500"), Ok((&[][..], value        )));
         }
         assert_eq!(super::time(b"16:43-05:32"), Ok((&[][..], Time {
-            local: LocalTime {
-                hour: 16,
-                minute: 43,
-                second: 0,
-                nanos: 0
-            },
-            tz_offset: -(5 * 60 + 32)
+            hour: 16,
+            minute: 43,
+            second: 0,
+            nanos: 0,
+            timezone: -(5 * 60 + 32)
         })));
         assert_eq!(super::time(b"16:43+23:59"), Ok((&[][..], Time {
-            local: LocalTime {
-                hour: 16,
-                minute: 43,
-                second: 0,
-                nanos: 0
-            },
-            tz_offset: 23 * 60 + 59
+            hour: 16,
+            minute: 43,
+            second: 0,
+            nanos: 0,
+            timezone: 23 * 60 + 59
         })));
+    }
+
+    #[test]
+    fn time_any() {
+        assert_eq!(super::time_any(b"16:43"), Ok((&[][..], AnyTime::Local(LocalTime {
+            hour: 16,
+            minute: 43,
+            second: 0,
+            nanos: 0,
+            timezone: ()
+        }))));
+        assert_eq!(super::time_any(b"T16:43"), Ok((&[][..], AnyTime::Local(LocalTime {
+            hour: 16,
+            minute: 43,
+            second: 0,
+            nanos: 0,
+            timezone: ()
+        }))));
+
+        assert_eq!(super::time_any(b"02:03Z"), Ok((&[][..], AnyTime::Global(Time {
+            hour: 2,
+            minute: 3,
+            second: 0,
+            nanos: 0,
+            timezone: 0
+        }))));
+        assert_eq!(super::time_any(b"02:03-01"), Ok((&[][..], AnyTime::Global(Time {
+            hour: 2,
+            minute: 3,
+            second: 0,
+            nanos: 0,
+            timezone: -1 * 60
+        }))));
+
+        assert_eq!(super::time_any(b"T12:23Z"), Ok((&b"Z"[..], AnyTime::Local(LocalTime {
+            hour: 12,
+            minute: 23,
+            second: 0,
+            nanos: 0,
+            timezone: ()
+        }))));
     }
 }

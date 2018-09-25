@@ -23,13 +23,11 @@ mod tests {
                 day: 31
             }),
             time: Time {
-                local: LocalTime {
-                    hour: 16,
-                    minute: 47,
-                    second: 22,
-                    nanos: 0
-                },
-                tz_offset: 5 * 60
+                hour: 16,
+                minute: 47,
+                second: 22,
+                nanos: 0,
+                timezone: 5 * 60
             }
         };
         assert_eq!(super::datetime(b"2007-08-31T16:47:22+05:00"), Ok((&[][..], value.clone())));

@@ -14,17 +14,17 @@ impl From<::DateTime> for DateTime<FixedOffset> {
     fn from(dt: ::DateTime) -> Self {
         let date: ::YmdDate = dt.date.into();
 
-        FixedOffset::east((dt.time.tz_offset * 60) as i32)
+        FixedOffset::east((dt.time.timezone * 60) as i32)
             .ymd(
                 date.year as i32,
                 date.month.into(),
                 date.day.into()
             )
             .and_hms_nano(
-                dt.time.local.hour.into(),
-                dt.time.local.minute.into(),
-                dt.time.local.second.into(),
-                dt.time.local.nanos
+                dt.time.hour.into(),
+                dt.time.minute.into(),
+                dt.time.second.into(),
+                dt.time.nanos
             )
     }
 }
