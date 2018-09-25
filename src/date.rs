@@ -1,5 +1,4 @@
 use {
-    parse,
     Valid,
     std::{
         convert::From,
@@ -34,15 +33,10 @@ pub struct OrdinalDate<Y: Year = i16> {
     pub day: u16
 }
 
-impl FromStr for Date {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse::date(s.as_bytes())
-            .map(|x| x.1)
-            .or(Err(()))
-    }
-}
+impl_fromstr_parse!(Date,        date        );
+impl_fromstr_parse!(YmdDate,     date_ymd    );
+impl_fromstr_parse!(WeekDate,    date_week   );
+impl_fromstr_parse!(OrdinalDate, date_ordinal);
 
 impl Valid for Date {
     fn is_valid(&self) -> bool {

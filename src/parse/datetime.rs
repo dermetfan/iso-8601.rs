@@ -4,26 +4,19 @@ use ::{
 };
 use super::*;
 
-named!(pub datetime_local <&[u8], DateTime<i16, LocalTime>>, do_parse!(
-    date: date >>
-    char!('T') >>
-    time: time_local >>
-    (DateTime { date, time })
-));
-
-named!(pub datetime_global <&[u8], DateTime>, do_parse!(
-    date: date >>
-    char!('T') >>
-    time: time_global >>
-    (DateTime { date, time })
-));
-
-named!(pub datetime <&[u8], DateTime<i16, AnyTime>>, do_parse!(
-    date: date >>
-    char!('T') >>
-    time: time >>
-    (DateTime { date, time })
-));
+macro_rules! datetime {
+    ($name:ident, $time:ty, $submac:ident) => {
+        named!(pub $name <&[u8], DateTime<i16, $time>>, do_parse!(
+            date: date >>
+            char!('T') >>
+            time: $submac >>
+            (DateTime { date, time })
+        ));
+    }
+}
+datetime!(datetime_local,  LocalTime,  time_local);
+datetime!(datetime_global, GlobalTime, time_global);
+datetime!(datetime,        AnyTime,    time);
 
 #[cfg(test)]
 mod tests {

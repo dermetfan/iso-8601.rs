@@ -50,7 +50,7 @@ named!(week_day <&[u8], u8>, map!(
     buf_to_int
 ));
 
-named!(date_ymd <&[u8], YmdDate>, alt_complete!(
+named!(pub date_ymd <&[u8], YmdDate>, alt_complete!(
     do_parse!(
         year: year >>
         month_day: opt!(complete!(do_parse!(
@@ -82,7 +82,7 @@ named!(date_ymd <&[u8], YmdDate>, alt_complete!(
     )
 ));
 
-named!(date_week <&[u8], WeekDate>, do_parse!(
+named!(pub date_week <&[u8], WeekDate>, do_parse!(
     year: year >>
     opt!(char!('-')) >>
     char!('W') >>
@@ -98,7 +98,7 @@ named!(date_week <&[u8], WeekDate>, do_parse!(
     })
 ));
 
-named!(date_ordinal <&[u8], OrdinalDate>, do_parse!(
+named!(pub date_ordinal <&[u8], OrdinalDate>, do_parse!(
     year: year >>
     opt!(char!('-')) >>
     day: year_day >>
@@ -108,7 +108,7 @@ named!(date_ordinal <&[u8], OrdinalDate>, do_parse!(
     })
 ));
 
-named!(pub date <&[u8], Date>, alt_complete!(
+named!(pub date <&[u8], Date>, alt!(
     do_parse!(
         date: date_week >>
         (Date::Week(date))

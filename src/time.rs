@@ -1,5 +1,4 @@
 use {
-    parse,
     Valid,
     std::str::FromStr
 };
@@ -114,35 +113,9 @@ impl Time for AnyTime {
     }
 }
 
-impl FromStr for LocalTime {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse::time_local(s.as_bytes())
-            .map(|x| x.1)
-            .or(Err(()))
-    }
-}
-
-impl FromStr for GlobalTime {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse::time_global(s.as_bytes())
-            .map(|x| x.1)
-            .or(Err(()))
-    }
-}
-
-impl FromStr for AnyTime {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse::time(s.as_bytes())
-            .map(|x| x.1)
-            .or(Err(()))
-    }
-}
+impl_fromstr_parse!(LocalTime,  time_local );
+impl_fromstr_parse!(GlobalTime, time_global);
+impl_fromstr_parse!(AnyTime,    time       );
 
 impl Valid for LocalTime {
     /// Accepts leap seconds on any day

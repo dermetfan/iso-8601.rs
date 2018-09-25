@@ -19,7 +19,7 @@ named!(second <&[u8], u8>, map!(
 
 named!(time_naive <&[u8], LocalTime>, do_parse!(
     hour: hour >>
-    minute_second_nanos: alt_complete!(
+    minute_second_nanos: alt!(
         do_parse!(
             nanos: frac_int!(10) >>
             ({

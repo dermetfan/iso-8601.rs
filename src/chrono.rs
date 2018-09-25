@@ -24,29 +24,29 @@ impl From<::DateTime> for DateTime<FixedOffset> {
 
 impl From<::DateTime> for DateTime<Utc> {
     fn from(dt: ::DateTime) -> Self {
-        let dt: DateTime<FixedOffset> = dt.into();
-        dt.with_timezone(&Utc)
+        DateTime::<FixedOffset>::from(dt)
+            .with_timezone(&Utc)
     }
 }
 
 impl From<::DateTime> for DateTime<Local> {
     fn from(dt: ::DateTime) -> Self {
-        let dt: DateTime<FixedOffset> = dt.into();
-        dt.with_timezone(&Local)
+        DateTime::<FixedOffset>::from(dt)
+            .with_timezone(&Local)
     }
 }
 
 impl From<::DateTime<i16, ::LocalTime>> for DateTime<FixedOffset> {
     fn from(dt: ::DateTime<i16, ::LocalTime>) -> Self {
-        let dt: DateTime<Local> = dt.into();
-        dt.with_timezone(&Utc.fix())
+        DateTime::<Local>::from(dt)
+            .with_timezone(&Utc.fix())
     }
 }
 
 impl From<::DateTime<i16, ::LocalTime>> for DateTime<Utc> {
     fn from(dt: ::DateTime<i16, ::LocalTime>) -> Self {
-        let dt: DateTime<Local> = dt.into();
-        dt.with_timezone(&Utc)
+        DateTime::<Local>::from(dt)
+            .with_timezone(&Utc)
     }
 }
 
@@ -71,15 +71,15 @@ impl From<::DateTime<i16, ::LocalTime>> for DateTime<Local> {
 
 impl From<::DateTime<i16, ::AnyTime>> for DateTime<FixedOffset> {
     fn from(dt: ::DateTime<i16, ::AnyTime>) -> Self {
-        let dt: DateTime<Local> = dt.into();
-        dt.with_timezone(&Utc.fix())
+        DateTime::<Local>::from(dt)
+            .with_timezone(&Utc.fix())
     }
 }
 
 impl From<::DateTime<i16, ::AnyTime>> for DateTime<Utc> {
     fn from(dt: ::DateTime<i16, ::AnyTime>) -> Self {
-        let dt: DateTime<Local> = dt.into();
-        dt.with_timezone(&Utc)
+        DateTime::<Local>::from(dt)
+            .with_timezone(&Utc)
     }
 }
 
