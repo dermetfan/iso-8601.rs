@@ -2,7 +2,7 @@
 
 macro_rules! impl_fromstr_parse {
     ($ty:ty, $func:ident) => {
-        impl FromStr for $ty {
+        impl ::std::str::FromStr for $ty {
             type Err = ();
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {

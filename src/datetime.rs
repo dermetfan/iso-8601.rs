@@ -1,8 +1,7 @@
 use {
     Valid,
     date::*,
-    time::*,
-    std::str::FromStr
+    time::*
 };
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -13,8 +12,8 @@ where Y: Year, T: Time {
 }
 
 impl_fromstr_parse!(DateTime,                 datetime_global);
-impl_fromstr_parse!(DateTime<i16, LocalTime>, datetime_local );
-impl_fromstr_parse!(DateTime<i16, AnyTime>,   datetime       );
+impl_fromstr_parse!(DateTime<i16, LocalTime>, datetime_local);
+impl_fromstr_parse!(DateTime<i16, AnyTime>,   datetime);
 
 impl<Y, T> Valid for DateTime<Y, T>
 where

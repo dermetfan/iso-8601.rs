@@ -1,7 +1,4 @@
-use {
-    Valid,
-    std::str::FromStr
-};
+use Valid;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct LocalTime {

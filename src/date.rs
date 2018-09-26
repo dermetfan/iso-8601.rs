@@ -1,9 +1,6 @@
 use {
     Valid,
-    std::{
-        convert::From,
-        str::FromStr
-    }
+    std::convert::From
 };
 
 #[derive(Eq, PartialEq, Clone, Debug)]
