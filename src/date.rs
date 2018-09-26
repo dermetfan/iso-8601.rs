@@ -9,8 +9,19 @@ use {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Date<Y: Year = i16> {
     YMD(YmdDate<Y>),
-    Week(WeekDate<Y>),
-    Ordinal(OrdinalDate<Y>)
+    WD(WdDate<Y>),
+    O(ODate<Y>)
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum AnyDate<Y: Year = i16> {
+    YMD(YmdDate<Y>),
+    YM(YmDate<Y>),
+    Y(YDate<Y>),
+    C(CDate),
+    WD(WdDate<Y>),
+    W(WDate<Y>),
+    O(ODate<Y>)
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -21,36 +32,82 @@ pub struct YmdDate<Y: Year = i16> {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub struct WeekDate<Y: Year = i16> {
+pub struct YmDate<Y: Year = i16> {
+    pub year: Y,
+    pub month: u8
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct YDate<Y: Year = i16> {
+    pub year: Y
+}
+
+// TODO support expanded century?
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct CDate {
+    pub century: i8
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct WdDate<Y: Year = i16> {
     pub year: Y,
     pub week: u8,
     pub day: u8
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub struct OrdinalDate<Y: Year = i16> {
+pub struct WDate<Y: Year = i16> {
+    pub year: Y,
+    pub week: u8
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct ODate<Y: Year = i16> {
     pub year: Y,
     pub day: u16
 }
 
-impl_fromstr_parse!(Date,        date        );
-impl_fromstr_parse!(YmdDate,     date_ymd    );
-impl_fromstr_parse!(WeekDate,    date_week   );
-impl_fromstr_parse!(OrdinalDate, date_ordinal);
+impl_fromstr_parse!(Date,    date);
+impl_fromstr_parse!(AnyDate, date_any);
+impl_fromstr_parse!(YmdDate, date_ymd);
+impl_fromstr_parse!(YmDate,  date_ym);
+impl_fromstr_parse!(YDate,   date_y);
+impl_fromstr_parse!(CDate,   date_c);
+impl_fromstr_parse!(WdDate,  date_wd);
+impl_fromstr_parse!(WDate,   date_w);
+impl_fromstr_parse!(ODate,   date_o);
 
-impl Valid for Date {
+impl<Y> Valid for Date<Y>
+where Y: Year + Clone {
     fn is_valid(&self) -> bool {
         match self {
-            Date::YMD    (date) => date.is_valid(),
-            Date::Week   (date) => date.is_valid(),
-            Date::Ordinal(date) => date.is_valid()
+            Date::YMD(date) => date.is_valid(),
+            Date::WD (date) => date.is_valid(),
+            Date::O  (date) => date.is_valid()
         }
     }
 }
 
-impl Valid for YmdDate {
+impl<Y> Valid for AnyDate<Y>
+where Y: Year + Clone {
     fn is_valid(&self) -> bool {
-        self.day >= 1 && self.day <= match self.month {
+        match self {
+            AnyDate::YMD(date) => date.is_valid(),
+            AnyDate::YM (date) => date.is_valid(),
+            AnyDate::Y  (date) => date.is_valid(),
+            AnyDate::C  (date) => date.is_valid(),
+            AnyDate::WD (date) => date.is_valid(),
+            AnyDate::W  (date) => date.is_valid(),
+            AnyDate::O  (date) => date.is_valid()
+        }
+    }
+}
+
+impl<Y> Valid for YmdDate<Y>
+where Y: Year {
+    fn is_valid(&self) -> bool {
+        self.day >= 1 &&
+        self.day <= match self.month {
             1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
             4 | 6 | 9 | 11              => 30,
             2 => if self.year.is_leap() { 29 } else { 28 },
@@ -59,58 +116,197 @@ impl Valid for YmdDate {
     }
 }
 
-impl Valid for WeekDate {
+impl<Y> Valid for YmDate<Y>
+where Y: Year {
     fn is_valid(&self) -> bool {
-        self.week >= 1 && self.week <= self.year.num_weeks() &&
-        self.day >= 1 && self.day <= 7
+        self.month >= 1 &&
+        self.month <= 12
     }
 }
 
-impl Valid for OrdinalDate {
+impl<Y> Valid for YDate<Y>
+where Y: Year {
     fn is_valid(&self) -> bool {
-        self.day >= 1 && self.day <= self.year.num_days()
+        true
     }
 }
 
+impl Valid for CDate {
+    fn is_valid(&self) -> bool {
+        true
+    }
+}
 
-impl From<Date> for YmdDate {
-    fn from(date: Date) -> Self {
+impl<Y> Valid for WdDate<Y>
+where Y: Year + Clone {
+    fn is_valid(&self) -> bool {
+        WDate::from(self.clone()).is_valid() &&
+        self.day >= 1 &&
+        self.day <= 7
+    }
+}
+
+impl<Y> Valid for WDate<Y>
+where Y: Year {
+    fn is_valid(&self) -> bool {
+        self.week >= 1 &&
+        self.week <= self.year.num_weeks()
+    }
+}
+
+impl<Y> Valid for ODate<Y>
+where Y: Year {
+    fn is_valid(&self) -> bool {
+        self.day >= 1 &&
+        self.day <= self.year.num_days()
+    }
+}
+
+pub trait Year {
+    fn is_leap(&self) -> bool;
+    fn num_weeks(&self) -> u8;
+
+    fn num_days(&self) -> u16 {
+        if self.is_leap() { 366 } else { 365 }
+    }
+}
+
+macro_rules! impl_years {
+    ($mac:ident) => {
+        $mac!(i16);
+        $mac!(i32);
+        $mac!(i64);
+        $mac!(i128);
+        $mac!(u16);
+        $mac!(u32);
+        $mac!(u64);
+        $mac!(u128);
+    }
+}
+
+macro_rules! impl_year {
+    ($ty:ty) => {
+        impl Year for $ty {
+            fn is_leap(&self) -> bool {
+                let factor = |x| self % x == 0;
+                factor(4) && (!factor(100) || factor(400))
+            }
+
+            fn num_weeks(&self) -> u8 {
+                // https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year
+                let p = |x| (x + x / 4 - x / 100 + x / 400) % 7;
+                if p(*self) == 4 || p(self - 1) == 3 { 53 } else { 52 }
+            }
+        }
+    }
+}
+impl_years!(impl_year);
+
+impl<Y> From<Date<Y>> for AnyDate<Y>
+where Y: Year {
+    fn from(date: Date<Y>) -> Self {
         match date {
-            Date::YMD    (date) => date,
-            Date::Week   (date) => date.into(),
-            Date::Ordinal(date) => date.into()
+            Date::YMD(date) => AnyDate::YMD(date),
+            Date::WD (date) => AnyDate::WD (date),
+            Date::O  (date) => AnyDate::O  (date)
         }
     }
 }
 
-impl From<Date> for WeekDate {
-    fn from(date: Date) -> Self {
+impl<Y> From<Date<Y>> for YmdDate<Y>
+where
+    Y: Year,
+    ODate<Y>: From<WdDate<Y>>
+{
+    fn from(date: Date<Y>) -> Self {
         match date {
-            Date::YMD    (date) => date.into(),
-            Date::Week   (date) => date,
-            Date::Ordinal(date) => date.into()
+            Date::YMD(date) => date,
+            Date::WD (date) => date.into(),
+            Date::O  (date) => date.into()
         }
     }
 }
 
-impl From<Date> for OrdinalDate {
-    fn from(date: Date) -> Self {
+impl<Y> From<Date<Y>> for WdDate<Y>
+where
+    Y: Year,
+    WdDate<Y>: From<ODate<Y>>,
+    ODate<Y>: From<WdDate<Y>>
+{
+    fn from(date: Date<Y>) -> Self {
         match date {
-            Date::YMD    (date) => date.into(),
-            Date::Week   (date) => date.into(),
-            Date::Ordinal(date) => date
+            Date::YMD(date) => date.into(),
+            Date::WD (date) => date,
+            Date::O  (date) => date.into()
         }
     }
 }
 
-impl From<WeekDate> for YmdDate {
-    fn from(date: WeekDate) -> Self {
-        OrdinalDate::from(date).into()
+impl<Y> From<Date<Y>> for ODate<Y>
+where
+    Y: Year,
+    ODate<Y>: From<WdDate<Y>>
+{
+    fn from(date: Date<Y>) -> Self {
+        match date {
+            Date::YMD(date) => date.into(),
+            Date::WD (date) => date.into(),
+            Date::O  (date) => date
+        }
     }
 }
 
-impl From<OrdinalDate> for YmdDate {
-    fn from(date: OrdinalDate) -> Self {
+impl<Y> From<YmdDate<Y>> for YmDate<Y>
+where Y: Year {
+    fn from(date: YmdDate<Y>) -> Self {
+        Self {
+            year: date.year,
+            month: date.month
+        }
+    }
+}
+
+impl<Y> From<YmdDate<Y>> for YDate<Y>
+where Y: Year {
+    fn from(date: YmdDate<Y>) -> Self {
+        Self {
+            year: date.year
+        }
+    }
+}
+
+impl<Y> From<YmDate<Y>> for YDate<Y>
+where Y: Year {
+    fn from(date: YmDate<Y>) -> Self {
+        Self {
+            year: date.year
+        }
+    }
+}
+
+impl<Y> From<WdDate<Y>> for WDate<Y>
+where Y: Year {
+    fn from(date: WdDate<Y>) -> Self {
+        Self {
+            year: date.year,
+            week: date.week
+        }
+    }
+}
+
+impl<Y> From<WdDate<Y>> for YmdDate<Y>
+where
+    Y: Year,
+    ODate<Y>: From<WdDate<Y>>
+{
+    fn from(date: WdDate<Y>) -> Self {
+        ODate::from(date).into()
+    }
+}
+
+impl<Y> From<ODate<Y>> for YmdDate<Y>
+where Y: Year {
+    fn from(date: ODate<Y>) -> Self {
         let leap = date.year.is_leap();
         let (month, day) = match date.day {
               1 ...  31         => ( 1, date.day -   0),
@@ -147,32 +343,80 @@ impl From<OrdinalDate> for YmdDate {
     }
 }
 
-impl From<YmdDate> for WeekDate {
-    fn from(date: YmdDate) -> Self {
-        OrdinalDate::from(date).into()
+impl<Y> From<WdDate<Y>> for YmDate<Y>
+where
+    Y: Year,
+    YmdDate<Y>: From<WdDate<Y>>
+{
+    fn from(date: WdDate<Y>) -> Self {
+        YmdDate::from(date).into()
     }
 }
 
-impl From<OrdinalDate> for WeekDate {
-    fn from(date: OrdinalDate) -> Self {
-        // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_the_week_number_of_a_given_date
-        let y = date.year % 100 % 28;
-        let cc = (date.year / 100) % 4;
-        let mut c = ((y + (y - 1) / 4 + 5 * cc - 1) % 7) as i16;
-        if c > 3 {
-            c -= 7;
-        }
-        let dc = date.day as i16 + c;
+impl<Y> From<ODate<Y>> for YmDate<Y>
+where Y: Year {
+    fn from(date: ODate<Y>) -> Self {
+        YmdDate::from(date).into()
+    }
+}
+
+impl<Y> From<WdDate<Y>> for YDate<Y>
+where
+    Y: Year,
+    YmdDate<Y>: From<WdDate<Y>>
+{
+    fn from(date: WdDate<Y>) -> Self {
+        YmdDate::from(date).into()
+    }
+}
+
+impl<Y> From<ODate<Y>> for YDate<Y>
+where Y: Year {
+    fn from(date: ODate<Y>) -> Self {
         Self {
-            year: date.year,
-            week: (dc as f32 / 7.0).ceil() as u8,
-            day: (dc % 7) as u8
+            year: date.year
         }
     }
 }
 
-impl From<YmdDate> for OrdinalDate {
-    fn from(date: YmdDate) -> Self {
+impl<Y> From<YmdDate<Y>> for WdDate<Y>
+where
+    Y: Year,
+    ODate<Y>: From<YmdDate<Y>>,
+    ODate<Y>: From<WdDate<Y>>,
+    WdDate<Y>: From<ODate<Y>>
+{
+    fn from(date: YmdDate<Y>) -> Self {
+        ODate::from(date).into()
+    }
+}
+
+macro_rules! impl_wd_from_o {
+    ($ty:ty) => {
+        impl From<ODate<$ty>> for WdDate<$ty> {
+            fn from(date: ODate<$ty>) -> Self {
+                // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_the_week_number_of_a_given_date
+                let y = date.year % 100 % 28;
+                let cc = (date.year / 100) % 4;
+                let mut c = ((y + (y - 1) / 4 + 5 * cc - 1) % 7) as i16;
+                if c > 3 {
+                    c -= 7;
+                }
+                let dc = date.day as i16 + c;
+                Self {
+                    year: date.year,
+                    week: (dc as f32 / 7.).ceil() as u8,
+                    day: (dc % 7) as u8
+                }
+            }
+        }
+    }
+}
+impl_years!(impl_wd_from_o);
+
+impl<Y> From<YmdDate<Y>> for ODate<Y>
+where Y: Year {
+    fn from(date: YmdDate<Y>) -> Self {
         let leap = date.year.is_leap();
         Self {
             year: date.year,
@@ -199,81 +443,54 @@ impl From<YmdDate> for OrdinalDate {
                 11         => 304,
                 12 if leap => 335,
                 12         => 334,
-                _ => unreachable!()
+                month @ _ => panic!("invalid month: {:?}", month)
             } + date.day as u16
         }
     }
 }
 
-impl From<WeekDate> for OrdinalDate {
-    fn from(date: WeekDate) -> Self {
-        // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year,_week_number_and_weekday
-
-        fn weekday_jan4(year: i16) -> u8 {
-            fn weekday_jan1(year: i16) -> u8 {
-                // https://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week#Gauss's_algorithm
-                let y = year - 1;
-                ((1 + 5 * (y % 4) + 4 * (y % 100) + 6 * (y % 400)) % 7) as u8
-            }
-
-            (weekday_jan1(year) + 3) % 7
-        }
-
-        let mut day = (date.week * 7 + date.day - (weekday_jan4(date.year) + 3)) as u16;
-        if day < 1 {
-            day += (date.year - 1).num_days();
-        }
-        if day > date.year.num_days() {
-            day -= date.year.num_days();
-        }
-
-        Self {
-            year: date.year,
-            day
-        }
-    }
-}
-
-pub trait Year {
-    fn is_leap(&self) -> bool;
-    fn num_weeks(&self) -> u8;
-
-    fn num_days(&self) -> u16 {
-        if self.is_leap() { 366 } else { 365 }
-    }
-}
-
-macro_rules! impl_year {
+macro_rules! impl_o_from_wd {
     ($ty:ty) => {
-        impl Year for $ty {
-            fn is_leap(&self) -> bool {
-                let factor = |x| self % x == 0;
-                factor(4) && (!factor(100) || factor(400))
-            }
+        impl From<WdDate<$ty>> for ODate<$ty> {
+            fn from(date: WdDate<$ty>) -> Self {
+                // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year,_week_number_and_weekday
 
-            fn num_weeks(&self) -> u8 {
-                // https://en.wikipedia.org/wiki/ISO_week_date#Weeks_per_year
-                let p = |x| (x + x / 4 - x / 100 + x / 400) % 7;
-                if p(*self) == 4 || p(self - 1) == 3 { 53 } else { 52 }
+                fn weekday_jan4(year: $ty) -> u8 {
+                    fn weekday_jan1(year: $ty) -> u8 {
+                        // https://en.wikipedia.org/wiki/Determination_of_the_day_of_the_week#Gauss's_algorithm
+                        let y = year - 1;
+                        ((1 + 5 * (y % 4) + 4 * (y % 100) + 6 * (y % 400)) % 7) as u8
+                    }
+
+                    (weekday_jan1(year) + 3) % 7
+                }
+
+                let mut day = (date.week * 7 + date.day - (weekday_jan4(date.year) + 3)) as u16;
+                if day < 1 {
+                    day += (date.year - 1).num_days();
+                }
+                if day > date.year.num_days() {
+                    day -= date.year.num_days();
+                }
+
+                Self {
+                    year: date.year,
+                    day
+                }
             }
         }
     }
 }
-impl_year!(i16);
-impl_year!(i32);
-impl_year!(i64);
-impl_year!(u16);
-impl_year!(u32);
-impl_year!(u64);
+impl_years!(impl_o_from_wd);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn ymd_from_week() {
+    fn ymd_from_wd() {
         assert_eq!(
-            YmdDate::from(WeekDate {
+            YmdDate::from(WdDate {
                 year: 1985,
                 week: 15,
                 day: 5
@@ -287,9 +504,9 @@ mod tests {
     }
 
     #[test]
-    fn ymd_from_ordinal() {
+    fn ymd_from_o() {
         assert_eq!(
-            YmdDate::from(OrdinalDate {
+            YmdDate::from(ODate {
                 year: 1985,
                 day: 102
             }),
@@ -302,26 +519,26 @@ mod tests {
     }
 
     #[test]
-    fn week_from_ymd() {
+    fn wd_from_ymd() {
         assert_eq!(
-            WeekDate::from(YmdDate {
+            WdDate::from(YmdDate {
                 year: 1985,
                 month: 4,
                 day: 12
             }),
-            WeekDate {
+            WdDate {
                 year: 1985,
                 week: 15,
                 day: 5
             }
         );
         assert_eq!(
-            WeekDate::from(YmdDate {
+            WdDate::from(YmdDate {
                 year: 2023,
                 month: 2,
                 day: 27
             }),
-            WeekDate {
+            WdDate {
                 year: 2023,
                 week: 9,
                 day: 1
@@ -330,13 +547,13 @@ mod tests {
     }
 
     #[test]
-    fn week_from_ordinal() {
+    fn wd_from_o() {
         assert_eq!(
-            WeekDate::from(OrdinalDate {
+            WdDate::from(ODate {
                 year: 1985,
                 day: 102
             }),
-            WeekDate {
+            WdDate {
                 year: 1985,
                 week: 15,
                 day: 5
@@ -345,14 +562,14 @@ mod tests {
     }
 
     #[test]
-    fn ordinal_from_ymd() {
+    fn o_from_ymd() {
         assert_eq!(
-            OrdinalDate::from(YmdDate {
+            ODate::from(YmdDate {
                 year: 1985,
                 month: 4,
                 day: 12
             }),
-            OrdinalDate {
+            ODate {
                 year: 1985,
                 day: 102
             }
@@ -360,14 +577,14 @@ mod tests {
     }
 
     #[test]
-    fn ordinal_from_week() {
+    fn o_from_wd() {
         assert_eq!(
-            OrdinalDate::from(WeekDate {
+            ODate::from(WdDate {
                 year: 1985,
                 week: 15,
                 day: 5
             }),
-            OrdinalDate {
+            ODate {
                 year: 1985,
                 day: 102
             }
@@ -395,24 +612,24 @@ mod tests {
     }
 
     #[test]
-    fn valid_date_week() {
-        assert!(!WeekDate {
+    fn valid_date_wd() {
+        assert!(!WdDate {
             year: 0,
             week: 0,
             day: 1
         }.is_valid());
-        assert!(!WeekDate {
+        assert!(!WdDate {
             year: 2018,
             week: 53,
             day: 1
         }.is_valid());
 
-        assert!(!WeekDate {
+        assert!(!WdDate {
             year: 0,
             week: 1,
             day: 0
         }.is_valid());
-        assert!(!WeekDate {
+        assert!(!WdDate {
             year: 0,
             week: 1,
             day: 8
@@ -420,12 +637,12 @@ mod tests {
     }
 
     #[test]
-    fn valid_date_ordinal() {
-        assert!(!OrdinalDate {
+    fn valid_date_o() {
+        assert!(!ODate {
             year: 2018,
             day: 366
         }.is_valid());
-        assert!(OrdinalDate {
+        assert!(ODate {
             year: 2020,
             day: 366
         }.is_valid());

@@ -50,34 +50,6 @@ named!(week_day <&[u8], u8>, map!(
     buf_to_int
 ));
 
-named!(date_ymd_basic_accuracy_month <&[u8], YmdDate>, do_parse!(
-    year: year >>
-    char!('-') >>
-    month: month >>
-    (YmdDate {
-        year, month,
-        day: 1
-    })
-));
-
-named!(date_ymd_basic_accuracy_year <&[u8], YmdDate>, do_parse!(
-    year: year >>
-    (YmdDate {
-        year,
-        month: 1,
-        day: 1
-    })
-));
-
-named!(date_ymd_basic_accuracy_century <&[u8], YmdDate>, do_parse!(
-    century: century >>
-    (YmdDate {
-        year: century as i16 * 100,
-        month: 1,
-        day: 1
-    })
-));
-
 named_args!(date_ymd_format(extended: bool) <&[u8], YmdDate>, do_parse!(
     year: year >>
     cond!(extended, char!('-')) >>
@@ -93,88 +65,124 @@ named!(date_ymd_extended <&[u8], YmdDate>, apply!(date_ymd_format, true));
 
 named!(pub date_ymd <&[u8], YmdDate>, alt_complete!(
     date_ymd_extended |
-    date_ymd_basic |
-    date_ymd_basic_accuracy_month |
-    date_ymd_basic_accuracy_year |
-    date_ymd_basic_accuracy_century
+    date_ymd_basic
 ));
 
-named_args!(date_week_format(extended: bool) <&[u8], WeekDate>, do_parse!(
+named_args!(date_wd_format(extended: bool) <&[u8], WdDate>, do_parse!(
     year: year >>
     cond!(extended, char!('-')) >>
     char!('W') >>
     week: year_week >>
-    day: opt!(complete!(do_parse!(
-        cond!(extended, char!('-')) >>
-        day: week_day >>
-        (day)
-    ))) >>
-    (WeekDate {
-        year, week,
-        day: day.unwrap_or(1)
-    })
+    cond!(extended, char!('-')) >>
+    day: week_day >>
+    (WdDate { year, week, day })
 ));
 
-named!(date_week_basic <&[u8], WeekDate>, apply!(date_week_format, false));
+named!(date_wd_basic <&[u8], WdDate>, apply!(date_wd_format, false));
 
-named!(date_week_extended <&[u8], WeekDate>, apply!(date_week_format, true));
+named!(date_wd_extended <&[u8], WdDate>, apply!(date_wd_format, true));
 
-named!(pub date_week <&[u8], WeekDate>, alt!(
-   date_week_extended |
-   date_week_basic
+named!(pub date_wd <&[u8], WdDate>, alt!(
+   date_wd_extended |
+   date_wd_basic
 ));
 
-named_args!(date_ordinal_format(extended: bool) <&[u8], OrdinalDate>, do_parse!(
+named_args!(date_o_format(extended: bool) <&[u8], ODate>, do_parse!(
     year: year >>
     cond!(extended, char!('-')) >>
     day: year_day >>
-    (OrdinalDate {
+    (ODate {
         year,
         day: day.into()
     })
 ));
 
-named!(date_ordinal_basic <&[u8], OrdinalDate>, apply!(date_ordinal_format, false));
+named!(date_o_basic <&[u8], ODate>, apply!(date_o_format, false));
 
-named!(date_ordinal_extended <&[u8], OrdinalDate>, apply!(date_ordinal_format, true));
+named!(date_o_extended <&[u8], ODate>, apply!(date_o_format, true));
 
-named!(pub date_ordinal <&[u8], OrdinalDate>, alt!(
-    date_ordinal_extended |
-    date_ordinal_basic
+named!(pub date_o <&[u8], ODate>, alt!(
+    date_o_extended |
+    date_o_basic
 ));
 
 named!(pub date <&[u8], Date>, alt_complete!(
     do_parse!(
-        date: date_week >>
-        (Date::Week(date))
+        date: date_wd >>
+        (Date::WD(date))
     ) |
     do_parse!(
         date: date_ymd_extended >>
         (Date::YMD(date))
     ) |
     do_parse!(
-        date: date_ordinal_extended >>
-        (Date::Ordinal(date))
+        date: date_o_extended >>
+        (Date::O(date))
     ) |
     do_parse!(
         date: date_ymd_basic >>
         (Date::YMD(date))
     ) |
     do_parse!(
-        date: date_ordinal_basic >>
-        (Date::Ordinal(date))
+        date: date_o_basic >>
+        (Date::O(date))
+    )
+));
+
+named_args!(date_w_format(extended: bool) <&[u8], WDate>, do_parse!(
+    year: year >>
+    cond!(extended, char!('-')) >>
+    char!('W') >>
+    week: year_week >>
+    (WDate { year, week })
+));
+
+named!(date_w_basic <&[u8], WDate>, apply!(date_w_format, false));
+
+named!(date_w_extended <&[u8], WDate>, apply!(date_w_format, true));
+
+named!(pub date_w <&[u8], WDate>, alt!(
+    date_w_extended |
+    date_w_basic
+));
+
+named!(pub date_ym <&[u8], YmDate>, do_parse!(
+    year: year >>
+    char!('-') >>
+    month: month >>
+    (YmDate { year, month })
+));
+
+named!(pub date_y <&[u8], YDate>, do_parse!(
+    year: year >>
+    (YDate { year })
+));
+
+named!(pub date_c <&[u8], CDate>, do_parse!(
+    century: century >>
+    (CDate { century })
+));
+
+named!(pub date_any <&[u8], AnyDate>, alt_complete!(
+    do_parse!(
+        date: date >>
+        (date.into())
     ) |
     do_parse!(
-        date: date_ymd_basic_accuracy_month >>
-        (Date::YMD(date))
+        date: date_w >>
+        (AnyDate::W(date))
     ) |
     do_parse!(
-        date: date_ymd_basic_accuracy_year >>
-        (Date::YMD(date))
+        date: date_ym >>
+        (AnyDate::YM(date))
     ) |
     do_parse!(
-        date: date_ymd_basic_accuracy_century >>
-        (Date::YMD(date))
+        date: date_y >>
+        (AnyDate::Y(date))
+    ) |
+    do_parse!(
+        date: date_c >>
+        (AnyDate::C(date))
     )
 ));
 
@@ -254,60 +262,69 @@ mod tests {
             month: 2,
             day: 29
         })));
-        assert_eq!(super::date_ymd(b"2016-02"), Ok((&[][..], YmdDate {
+    }
+
+    #[test]
+    fn date_ym() {
+        assert_eq!(super::date_ym(b"2016-02"), Ok((&[][..], YmDate {
             year: 2016,
-            month: 2,
-            day: 1
-        })));
-        assert_eq!(super::date_ymd(b"2016"), Ok((&[][..], YmdDate {
-            year: 2016,
-            month: 1,
-            day: 1
-        })));
-        assert_eq!(super::date_ymd(b"20"), Ok((&[][..], YmdDate {
-            year: 2000,
-            month: 1,
-            day: 1
+            month: 2
         })));
     }
 
     #[test]
-    fn date_week() {
-        assert_eq!(super::date_week(b"2018-W01-1"), Ok((&[][..], WeekDate {
+    fn date_y() {
+        assert_eq!(super::date_y(b"2016"), Ok((&[][..], YDate {
+            year: 2016
+        })));
+    }
+
+    #[test]
+    fn date_c() {
+        assert_eq!(super::date_c(b"20"), Ok((&[][..], CDate {
+            century: 20
+        })));
+    }
+
+    #[test]
+    fn date_wd() {
+        assert_eq!(super::date_wd(b"2018-W01-1"), Ok((&[][..], WdDate {
             year: 2018,
             week: 1,
             day: 1
         })));
-        assert_eq!(super::date_week(b"2018-W52-7"), Ok((&[][..], WeekDate {
+        assert_eq!(super::date_wd(b"2018-W52-7"), Ok((&[][..], WdDate {
             year: 2018,
             week: 52,
             day: 7
         })));
-        assert_eq!(super::date_week(b"2018W223"), Ok((&[][..], WeekDate {
+        assert_eq!(super::date_wd(b"2018W223"), Ok((&[][..], WdDate {
             year: 2018,
             week: 22,
             day: 3
         })));
-        assert_eq!(super::date_week(b"2018W22"), Ok((&[][..], WeekDate {
-            year: 2018,
-            week: 22,
-            day: 1
-        })));
-        assert_eq!(super::date_week(b"2020-W53"), Ok((&[][..], WeekDate {
-            year: 2020,
-            week: 53,
-            day: 1
-        })));
     }
 
     #[test]
-    fn date_ordinal() {
-        let value = OrdinalDate {
+    fn date_w() {
+        let value = WDate {
+            year: 2020,
+            week: 53
+        };
+        assert_eq!(super::date_w(b"2020-W53 "), Ok((&b" "[..], value.clone())));
+        assert_eq!(super::date_w(b"2020-W53"),  Ok((&[][..],   value.clone())));
+        assert_eq!(super::date_w(b"2020W53 "),  Ok((&b" "[..], value.clone())));
+        assert_eq!(super::date_w(b"2020W53"),   Ok((&[][..],   value        )));
+    }
+
+    #[test]
+    fn date_o() {
+        let value = ODate {
             year: 1985,
             day: 102
         };
-        assert_eq!(super::date_ordinal(b"1985-102"), Ok((&[][..], value.clone())));
-        assert_eq!(super::date_ordinal(b"1985102"),  Ok((&[][..], value        )));
+        assert_eq!(super::date_o(b"1985-102"), Ok((&[][..], value.clone())));
+        assert_eq!(super::date_o(b"1985102"),  Ok((&[][..], value        )));
     }
 
     #[test]
@@ -323,7 +340,7 @@ mod tests {
         }
 
         {
-            let value = Date::Week(WeekDate {
+            let value = Date::WD(WdDate {
                 year: 2018,
                 week: 2,
                 day: 2
@@ -333,12 +350,82 @@ mod tests {
         }
 
         {
-            let value = Date::Ordinal(OrdinalDate {
+            let value = Date::O(ODate {
                 year: 2018,
                 day: 102
             });
             assert_eq!(super::date(b"2018-102"),  Ok((&[][..],   value.clone())));
             assert_eq!(super::date(b"2018-102 "), Ok((&b" "[..], value        )));
+        }
+    }
+
+    #[test]
+    fn date_any() {
+        {
+            let value = AnyDate::YMD(YmdDate {
+                year: 2000,
+                month: 5,
+                day: 5
+            });
+            assert_eq!(super::date_any(b"2000-05-05 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"20000505 "),   Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000-05-05"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_any(b"20000505"),    Ok((&[][..],   value        )));
+        }
+        {
+            let value = AnyDate::YM(YmDate {
+                year: 2000,
+                month: 5
+            });
+            assert_eq!(super::date_any(b"2000-05 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000-05"),  Ok((&[][..],   value        )));
+        }
+        {
+            let value = AnyDate::Y(YDate {
+                year: 2000
+            });
+            assert_eq!(super::date_any(b"2000 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000"),  Ok((&[][..],   value        )));
+        }
+        {
+            let value = AnyDate::C(CDate {
+                century: 20
+            });
+            assert_eq!(super::date_any(b"20 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"20"),  Ok((&[][..],   value        )));
+        }
+
+        {
+            let value = AnyDate::WD(WdDate {
+                year: 2000,
+                week: 5,
+                day: 5
+            });
+            assert_eq!(super::date_any(b"2000-W05-5 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000-W05-5"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_any(b"2000W055 "),   Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000W055"),    Ok((&[][..],   value        )));
+        }
+        {
+            let value = AnyDate::W(WDate {
+                year: 2000,
+                week: 5
+            });
+            assert_eq!(super::date_any(b"2000-W05 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000-W05"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_any(b"2000W05 "),  Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000W05"),   Ok((&[][..],   value        )));
+        }
+
+        {
+            let value = AnyDate::O(ODate {
+                year: 2000,
+                day: 5
+            });
+            assert_eq!(super::date_any(b"2000-005 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000-005"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_any(b"2000005 "),  Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_any(b"2000005"),   Ok((&[][..],   value        )));
         }
     }
 }
