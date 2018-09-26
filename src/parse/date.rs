@@ -46,7 +46,7 @@ named!(year_day <&[u8], u8>, map!(
 ));
 
 named!(week_day <&[u8], u8>, map!(
-    take!(1),
+    take_while_m_n!(1, 1, nom::is_digit),
     buf_to_int
 ));
 
