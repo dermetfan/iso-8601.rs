@@ -16,7 +16,11 @@ impl_fromstr_parse!(DateTime,                 datetime_global);
 impl_fromstr_parse!(DateTime<i16, LocalTime>, datetime_local );
 impl_fromstr_parse!(DateTime<i16, AnyTime>,   datetime       );
 
-impl Valid for DateTime {
+impl<Y, T> Valid for DateTime<Y, T>
+where
+    Y: Year + Clone,
+    T: Time + Valid
+{
     fn is_valid(&self) -> bool {
         self.date.is_valid() &&
         self.time.is_valid()
