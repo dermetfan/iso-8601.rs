@@ -5,20 +5,23 @@ use {
 };
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub struct DateTime<Y = i16, T = GlobalTime>
-where Y: Year, T: Time {
-    pub date: Date<Y>,
+pub struct DateTime<D = YmdDate, T = GlobalTime>
+where D: Datelike, T: Time {
+    pub date: D,
     pub time: T
 }
 
-impl_fromstr_parse!(DateTime,                 datetime_global);
-impl_fromstr_parse!(DateTime<i16, LocalTime>, datetime_local);
-impl_fromstr_parse!(DateTime<i16, AnyTime>,   datetime);
+impl_fromstr_parse!(DateTime<Date,       GlobalTime>, datetime_global);
+impl_fromstr_parse!(DateTime<Date,       LocalTime>,  datetime_local);
+impl_fromstr_parse!(DateTime<Date,       AnyTime>,    datetime);
+impl_fromstr_parse!(DateTime<ApproxDate, GlobalTime>, datetime_approx_global);
+impl_fromstr_parse!(DateTime<ApproxDate, LocalTime>,  datetime_approx_local);
+impl_fromstr_parse!(DateTime<ApproxDate, AnyTime>,    datetime_approx);
 
-impl<Y, T> Valid for DateTime<Y, T>
+impl<D, T> Valid for DateTime<D, T>
 where
-    Y: Year + Clone,
-    T: Time + Valid
+    D: Datelike + Valid,
+    T: Time     + Valid
 {
     fn is_valid(&self) -> bool {
         self.date.is_valid() &&

@@ -1,27 +1,30 @@
 use ::{
     datetime::*,
+    date::*,
     time::*
 };
 use super::*;
 
 macro_rules! datetime {
-    ($name:ident, $time:ty, $submac:ident) => {
-        named!(pub $name <&[u8], DateTime<i16, $time>>, do_parse!(
-            date: date >>
+    ($name:ident, $date:ty, $date_parser:ident, $time:ty, $time_parser:ident) => {
+        named!(pub $name <&[u8], DateTime<$date, $time>>, do_parse!(
+            date: $date_parser >>
             char!('T') >>
-            time: $submac >>
+            time: $time_parser >>
             (DateTime { date, time })
         ));
     }
 }
-datetime!(datetime_local,  LocalTime,  time_local);
-datetime!(datetime_global, GlobalTime, time_global);
-datetime!(datetime,        AnyTime,    time);
+datetime!(datetime_local,         Date,       date,        LocalTime,  time_local);
+datetime!(datetime_global,        Date,       date,        GlobalTime, time_global);
+datetime!(datetime,               Date,       date,        AnyTime,    time);
+datetime!(datetime_approx_local,  ApproxDate, date_approx, LocalTime,  time_local);
+datetime!(datetime_approx_global, ApproxDate, date_approx, GlobalTime, time_global);
+datetime!(datetime_approx,        ApproxDate, date_approx, AnyTime,    time);
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::date::*;
 
     #[test]
     fn datetime_local() {

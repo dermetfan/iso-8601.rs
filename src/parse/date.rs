@@ -163,26 +163,26 @@ named!(pub date_c <&[u8], CDate>, do_parse!(
     (CDate { century })
 ));
 
-named!(pub date_any <&[u8], AnyDate>, alt_complete!(
+named!(pub date_approx <&[u8], ApproxDate>, alt_complete!(
     do_parse!(
         date: date >>
         (date.into())
     ) |
     do_parse!(
         date: date_w >>
-        (AnyDate::W(date))
+        (ApproxDate::W(date))
     ) |
     do_parse!(
         date: date_ym >>
-        (AnyDate::YM(date))
+        (ApproxDate::YM(date))
     ) |
     do_parse!(
         date: date_y >>
-        (AnyDate::Y(date))
+        (ApproxDate::Y(date))
     ) |
     do_parse!(
         date: date_c >>
-        (AnyDate::C(date))
+        (ApproxDate::C(date))
     )
 ));
 
@@ -360,72 +360,72 @@ mod tests {
     }
 
     #[test]
-    fn date_any() {
+    fn date_approx() {
         {
-            let value = AnyDate::YMD(YmdDate {
+            let value = ApproxDate::YMD(YmdDate {
                 year: 2000,
                 month: 5,
                 day: 5
             });
-            assert_eq!(super::date_any(b"2000-05-05 "), Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"20000505 "),   Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000-05-05"),  Ok((&[][..],   value.clone())));
-            assert_eq!(super::date_any(b"20000505"),    Ok((&[][..],   value        )));
+            assert_eq!(super::date_approx(b"2000-05-05 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"20000505 "),   Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000-05-05"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_approx(b"20000505"),    Ok((&[][..],   value        )));
         }
         {
-            let value = AnyDate::YM(YmDate {
+            let value = ApproxDate::YM(YmDate {
                 year: 2000,
                 month: 5
             });
-            assert_eq!(super::date_any(b"2000-05 "), Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000-05"),  Ok((&[][..],   value        )));
+            assert_eq!(super::date_approx(b"2000-05 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000-05"),  Ok((&[][..],   value        )));
         }
         {
-            let value = AnyDate::Y(YDate {
+            let value = ApproxDate::Y(YDate {
                 year: 2000
             });
-            assert_eq!(super::date_any(b"2000 "), Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000"),  Ok((&[][..],   value        )));
+            assert_eq!(super::date_approx(b"2000 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000"),  Ok((&[][..],   value        )));
         }
         {
-            let value = AnyDate::C(CDate {
+            let value = ApproxDate::C(CDate {
                 century: 20
             });
-            assert_eq!(super::date_any(b"20 "), Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"20"),  Ok((&[][..],   value        )));
+            assert_eq!(super::date_approx(b"20 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"20"),  Ok((&[][..],   value        )));
         }
 
         {
-            let value = AnyDate::WD(WdDate {
+            let value = ApproxDate::WD(WdDate {
                 year: 2000,
                 week: 5,
                 day: 5
             });
-            assert_eq!(super::date_any(b"2000-W05-5 "), Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000-W05-5"),  Ok((&[][..],   value.clone())));
-            assert_eq!(super::date_any(b"2000W055 "),   Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000W055"),    Ok((&[][..],   value        )));
+            assert_eq!(super::date_approx(b"2000-W05-5 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000-W05-5"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_approx(b"2000W055 "),   Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000W055"),    Ok((&[][..],   value        )));
         }
         {
-            let value = AnyDate::W(WDate {
+            let value = ApproxDate::W(WDate {
                 year: 2000,
                 week: 5
             });
-            assert_eq!(super::date_any(b"2000-W05 "), Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000-W05"),  Ok((&[][..],   value.clone())));
-            assert_eq!(super::date_any(b"2000W05 "),  Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000W05"),   Ok((&[][..],   value        )));
+            assert_eq!(super::date_approx(b"2000-W05 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000-W05"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_approx(b"2000W05 "),  Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000W05"),   Ok((&[][..],   value        )));
         }
 
         {
-            let value = AnyDate::O(ODate {
+            let value = ApproxDate::O(ODate {
                 year: 2000,
                 day: 5
             });
-            assert_eq!(super::date_any(b"2000-005 "), Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000-005"),  Ok((&[][..],   value.clone())));
-            assert_eq!(super::date_any(b"2000005 "),  Ok((&b" "[..], value.clone())));
-            assert_eq!(super::date_any(b"2000005"),   Ok((&[][..],   value        )));
+            assert_eq!(super::date_approx(b"2000-005 "), Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000-005"),  Ok((&[][..],   value.clone())));
+            assert_eq!(super::date_approx(b"2000005 "),  Ok((&b" "[..], value.clone())));
+            assert_eq!(super::date_approx(b"2000005"),   Ok((&[][..],   value        )));
         }
     }
 }

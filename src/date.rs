@@ -11,7 +11,7 @@ pub enum Date<Y: Year = i16> {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub enum AnyDate<Y: Year = i16> {
+pub enum ApproxDate<Y: Year = i16> {
     YMD(YmdDate<Y>),
     YM(YmDate<Y>),
     Y(YDate<Y>),
@@ -64,15 +64,27 @@ pub struct ODate<Y: Year = i16> {
     pub day: u16
 }
 
-impl_fromstr_parse!(Date,    date);
-impl_fromstr_parse!(AnyDate, date_any);
-impl_fromstr_parse!(YmdDate, date_ymd);
-impl_fromstr_parse!(YmDate,  date_ym);
-impl_fromstr_parse!(YDate,   date_y);
-impl_fromstr_parse!(CDate,   date_c);
-impl_fromstr_parse!(WdDate,  date_wd);
-impl_fromstr_parse!(WDate,   date_w);
-impl_fromstr_parse!(ODate,   date_o);
+pub trait Datelike<Y: Year = i16> {}
+
+impl<Y: Year> Datelike<Y> for Date<Y> {}
+impl<Y: Year> Datelike<Y> for ApproxDate<Y> {}
+impl<Y: Year> Datelike<Y> for YmdDate<Y> {}
+impl<Y: Year> Datelike<Y> for YmDate<Y> {}
+impl<Y: Year> Datelike<Y> for YDate<Y> {}
+impl<Y: Year> Datelike<Y> for CDate {}
+impl<Y: Year> Datelike<Y> for WdDate<Y> {}
+impl<Y: Year> Datelike<Y> for WDate<Y> {}
+impl<Y: Year> Datelike<Y> for ODate<Y> {}
+
+impl_fromstr_parse!(Date,       date);
+impl_fromstr_parse!(ApproxDate, date_approx);
+impl_fromstr_parse!(YmdDate,    date_ymd);
+impl_fromstr_parse!(YmDate,     date_ym);
+impl_fromstr_parse!(YDate,      date_y);
+impl_fromstr_parse!(CDate,      date_c);
+impl_fromstr_parse!(WdDate,     date_wd);
+impl_fromstr_parse!(WDate,      date_w);
+impl_fromstr_parse!(ODate,      date_o);
 
 impl<Y> Valid for Date<Y>
 where Y: Year + Clone {
@@ -85,17 +97,17 @@ where Y: Year + Clone {
     }
 }
 
-impl<Y> Valid for AnyDate<Y>
+impl<Y> Valid for ApproxDate<Y>
 where Y: Year + Clone {
     fn is_valid(&self) -> bool {
         match self {
-            AnyDate::YMD(date) => date.is_valid(),
-            AnyDate::YM (date) => date.is_valid(),
-            AnyDate::Y  (date) => date.is_valid(),
-            AnyDate::C  (date) => date.is_valid(),
-            AnyDate::WD (date) => date.is_valid(),
-            AnyDate::W  (date) => date.is_valid(),
-            AnyDate::O  (date) => date.is_valid()
+            ApproxDate::YMD(date) => date.is_valid(),
+            ApproxDate::YM (date) => date.is_valid(),
+            ApproxDate::Y  (date) => date.is_valid(),
+            ApproxDate::C  (date) => date.is_valid(),
+            ApproxDate::WD (date) => date.is_valid(),
+            ApproxDate::W  (date) => date.is_valid(),
+            ApproxDate::O  (date) => date.is_valid()
         }
     }
 }
@@ -199,13 +211,13 @@ macro_rules! impl_year {
 }
 impl_years!(impl_year);
 
-impl<Y> From<Date<Y>> for AnyDate<Y>
+impl<Y> From<Date<Y>> for ApproxDate<Y>
 where Y: Year {
     fn from(date: Date<Y>) -> Self {
         match date {
-            Date::YMD(date) => AnyDate::YMD(date),
-            Date::WD (date) => AnyDate::WD (date),
-            Date::O  (date) => AnyDate::O  (date)
+            Date::YMD(date) => ApproxDate::YMD(date),
+            Date::WD (date) => ApproxDate::WD (date),
+            Date::O  (date) => ApproxDate::O  (date)
         }
     }
 }
