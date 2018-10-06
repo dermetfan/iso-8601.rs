@@ -1,25 +1,3 @@
-macro_rules! frac_int {
-    ($i:expr, $precision:expr) => {
-        complete!($i, do_parse!(
-            one_of!(",.") >>
-            frac: alt_complete!(
-                take_while1!(nom::is_digit) |
-                take_rest!()
-            ) >>
-            (buf_to_frac_int(frac, $precision))
-        ))
-    }
-}
-
-/// Takes the rest of the input until EOF.
-macro_rules! take_rest {
-    ($i:expr,) => ({
-        use nom::InputLength;
-
-        take!($i, $i.input_len())
-    })
-}
-
 mod date;
 mod time;
 mod datetime;
@@ -30,7 +8,17 @@ pub use self::{
     datetime::*
 };
 
-use std::ops::{AddAssign, MulAssign};
+use {
+    std::ops::{
+        AddAssign,
+        MulAssign
+    },
+    nom::{
+        self,
+        IResult,
+        types::CompleteByteSlice
+    }
+};
 
 fn buf_to_int<T>(buf: &[u8]) -> T
 where T: AddAssign + MulAssign + From<u8> {
@@ -42,29 +30,46 @@ where T: AddAssign + MulAssign + From<u8> {
     sum
 }
 
-/// Returns ".`buf`" as unit 10^(-(`precision` + 1)).
-///
-/// Panics on greater than the given precision
-/// (`buf.chars().count() >= precision + 1`).
-fn buf_to_frac_int(buf: &[u8], precision: u8) -> u64 {
-    let mut nanos = 0;
-    for (i, digit) in buf.iter().enumerate() {
-        let digit = digit - b'0';
-        nanos += digit as u64 * 10u64.pow((precision - i as u8) as u32);
-    }
-    nanos
+named!(complete_float <CompleteByteSlice, f32>, flat_map!(
+    nom::recognize_float, parse_to!(f32)
+));
+
+fn complete_float_bytes(i: &[u8]) -> IResult<&[u8], f32> {
+    complete_float(CompleteByteSlice(i))
+        .map(|(i, o)| (*i, o))
+        .map_err(|e| {
+            use nom::{
+                Context::Code,
+                Err::*
+            };
+
+            match e {
+                Incomplete(n)       => Incomplete(n),
+                Error  (Code(i, k)) => Error  (Code(*i, k)),
+                Failure(Code(i, k)) => Failure(Code(*i, k))
+            }
+        })
 }
 
-named!(sign <&[u8], i8>, alt!(
+named!(sign <i8>, alt!(
     one_of!("-\u{2212}\u{2010}") => { |_| -1 } |
     char!('+')                   => { |_|  1 }
+));
+
+named!(frac32 <f32>, do_parse!(
+    peek!(char!('.')) >>
+    fraction: complete_float_bytes >>
+    (fraction)
 ));
 
 #[cfg(test)]
 mod tests {
     use nom::{
         Context::Code,
-        Err::{Error, Incomplete},
+        Err::{
+            Error,
+            Incomplete
+        },
         ErrorKind::Alt,
         Needed::Size
     };

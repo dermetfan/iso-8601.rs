@@ -2,55 +2,55 @@ use ::date::*;
 use super::*;
 use nom;
 
-named!(positive_century <&[u8], u8>, map!(
+named!(positive_century <u8>, map!(
     take_while_m_n!(2, 2, nom::is_digit),
     buf_to_int
 ));
 
-named!(century <&[u8], i8>, do_parse!(
+named!(century <i8>, do_parse!(
     sign: opt!(sign) >>
     century: positive_century >>
     (sign.unwrap_or(1) * century as i8)
 ));
 
 // TODO support expanded year
-named!(positive_year <&[u8], u16>, map!(
+named!(positive_year <u16>, map!(
     take_while_m_n!(4, 4, nom::is_digit),
     buf_to_int
 ));
 
-named!(year <&[u8], i16>, do_parse!(
+named!(year <i16>, do_parse!(
     sign: opt!(sign) >>
     year: positive_year >>
     (sign.unwrap_or(1) as i16 * year as i16)
 ));
 
-named!(month <&[u8], u8>, map!(
+named!(month <u8>, map!(
     take_while_m_n!(2, 2, nom::is_digit),
     buf_to_int
 ));
 
-named!(day <&[u8], u8>, map!(
+named!(day <u8>, map!(
     take_while_m_n!(2, 2, nom::is_digit),
     buf_to_int
 ));
 
-named!(year_week <&[u8], u8>, map!(
+named!(year_week <u8>, map!(
     take_while_m_n!(2, 2, nom::is_digit),
     buf_to_int
 ));
 
-named!(year_day <&[u8], u8>, map!(
+named!(year_day <u8>, map!(
     take_while_m_n!(3, 3, nom::is_digit),
     buf_to_int
 ));
 
-named!(week_day <&[u8], u8>, map!(
+named!(week_day <u8>, map!(
     take_while_m_n!(1, 1, nom::is_digit),
     buf_to_int
 ));
 
-named_args!(date_ymd_format(extended: bool) <&[u8], YmdDate>, do_parse!(
+named_args!(date_ymd_format(extended: bool) <YmdDate>, do_parse!(
     year: year >>
     cond!(extended, char!('-')) >>
     month: month >>
@@ -58,17 +58,15 @@ named_args!(date_ymd_format(extended: bool) <&[u8], YmdDate>, do_parse!(
     day: day >>
     (YmdDate { year, month, day })
 ));
+named!(date_ymd_basic    <YmdDate>, apply!(date_ymd_format, false));
+named!(date_ymd_extended <YmdDate>, apply!(date_ymd_format, true));
 
-named!(date_ymd_basic <&[u8], YmdDate>, apply!(date_ymd_format, false));
-
-named!(date_ymd_extended <&[u8], YmdDate>, apply!(date_ymd_format, true));
-
-named!(pub date_ymd <&[u8], YmdDate>, alt_complete!(
+named!(pub date_ymd <YmdDate>, alt_complete!(
     date_ymd_extended |
     date_ymd_basic
 ));
 
-named_args!(date_wd_format(extended: bool) <&[u8], WdDate>, do_parse!(
+named_args!(date_wd_format(extended: bool) <WdDate>, do_parse!(
     year: year >>
     cond!(extended, char!('-')) >>
     char!('W') >>
@@ -77,17 +75,15 @@ named_args!(date_wd_format(extended: bool) <&[u8], WdDate>, do_parse!(
     day: week_day >>
     (WdDate { year, week, day })
 ));
+named!(date_wd_basic    <WdDate>, apply!(date_wd_format, false));
+named!(date_wd_extended <WdDate>, apply!(date_wd_format, true));
 
-named!(date_wd_basic <&[u8], WdDate>, apply!(date_wd_format, false));
-
-named!(date_wd_extended <&[u8], WdDate>, apply!(date_wd_format, true));
-
-named!(pub date_wd <&[u8], WdDate>, alt!(
+named!(pub date_wd <WdDate>, alt!(
    date_wd_extended |
    date_wd_basic
 ));
 
-named_args!(date_o_format(extended: bool) <&[u8], ODate>, do_parse!(
+named_args!(date_o_format(extended: bool) <ODate>, do_parse!(
     year: year >>
     cond!(extended, char!('-')) >>
     day: year_day >>
@@ -96,94 +92,54 @@ named_args!(date_o_format(extended: bool) <&[u8], ODate>, do_parse!(
         day: day.into()
     })
 ));
+named!(date_o_basic    <ODate>, apply!(date_o_format, false));
+named!(date_o_extended <ODate>, apply!(date_o_format, true));
 
-named!(date_o_basic <&[u8], ODate>, apply!(date_o_format, false));
-
-named!(date_o_extended <&[u8], ODate>, apply!(date_o_format, true));
-
-named!(pub date_o <&[u8], ODate>, alt!(
+named!(pub date_o <ODate>, alt!(
     date_o_extended |
     date_o_basic
 ));
 
-named!(pub date <&[u8], Date>, alt_complete!(
-    do_parse!(
-        date: date_wd >>
-        (Date::WD(date))
-    ) |
-    do_parse!(
-        date: date_ymd_extended >>
-        (Date::YMD(date))
-    ) |
-    do_parse!(
-        date: date_o_extended >>
-        (Date::O(date))
-    ) |
-    do_parse!(
-        date: date_ymd_basic >>
-        (Date::YMD(date))
-    ) |
-    do_parse!(
-        date: date_o_basic >>
-        (Date::O(date))
-    )
+named!(pub date <Date>, alt_complete!(
+    map!(date_wd, Date::WD) |
+    map!(date_ymd_extended, Date::YMD) |
+    map!(date_o_extended, Date::O) |
+    map!(date_ymd_basic, Date::YMD) |
+    map!(date_o_basic, Date::O)
 ));
 
-named_args!(date_w_format(extended: bool) <&[u8], WDate>, do_parse!(
+named_args!(date_w_format(extended: bool) <WDate>, do_parse!(
     year: year >>
     cond!(extended, char!('-')) >>
     char!('W') >>
     week: year_week >>
     (WDate { year, week })
 ));
+named!(date_w_basic    <WDate>, apply!(date_w_format, false));
+named!(date_w_extended <WDate>, apply!(date_w_format, true));
 
-named!(date_w_basic <&[u8], WDate>, apply!(date_w_format, false));
-
-named!(date_w_extended <&[u8], WDate>, apply!(date_w_format, true));
-
-named!(pub date_w <&[u8], WDate>, alt!(
+named!(pub date_w <WDate>, alt!(
     date_w_extended |
     date_w_basic
 ));
 
-named!(pub date_ym <&[u8], YmDate>, do_parse!(
+named!(pub date_ym <YmDate>, do_parse!(
     year: year >>
     char!('-') >>
     month: month >>
     (YmDate { year, month })
 ));
 
-named!(pub date_y <&[u8], YDate>, do_parse!(
-    year: year >>
-    (YDate { year })
-));
+named!(pub date_y <YDate>, map!(year, |year| YDate { year }));
 
-named!(pub date_c <&[u8], CDate>, do_parse!(
-    century: century >>
-    (CDate { century })
-));
+named!(pub date_c <CDate>, map!(century, |century| CDate { century }));
 
-named!(pub date_approx <&[u8], ApproxDate>, alt_complete!(
-    do_parse!(
-        date: date >>
-        (date.into())
-    ) |
-    do_parse!(
-        date: date_w >>
-        (ApproxDate::W(date))
-    ) |
-    do_parse!(
-        date: date_ym >>
-        (ApproxDate::YM(date))
-    ) |
-    do_parse!(
-        date: date_y >>
-        (ApproxDate::Y(date))
-    ) |
-    do_parse!(
-        date: date_c >>
-        (ApproxDate::C(date))
-    )
+named!(pub date_approx <ApproxDate>, alt_complete!(
+    map!(date, |x| x.into()) |
+    map!(date_w, ApproxDate::W) |
+    map!(date_ym, ApproxDate::YM) |
+    map!(date_y, ApproxDate::Y) |
+    map!(date_c, ApproxDate::C)
 ));
 
 #[cfg(test)]

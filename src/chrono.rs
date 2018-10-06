@@ -4,8 +4,8 @@ extern crate chrono;
 
 use self::chrono::prelude::*;
 
-impl From<::DateTime> for DateTime<FixedOffset> {
-    fn from(dt: ::DateTime) -> Self {
+impl From<::DateTime<::Date, ::GlobalTime>> for DateTime<FixedOffset> {
+    fn from(dt: ::DateTime<::Date, ::GlobalTime>) -> Self {
         let date: ::YmdDate = dt.date.into();
 
         FixedOffset::east((dt.time.timezone * 60).into())
@@ -14,44 +14,44 @@ impl From<::DateTime> for DateTime<FixedOffset> {
                 date.month.into(),
                 date.day.into()
             ).and_hms_nano(
-                dt.time.local.hour.into(),
-                dt.time.local.minute.into(),
-                dt.time.local.second.into(),
-                dt.time.local.nanos
+                dt.time.local.naive.hour.into(),
+                dt.time.local.naive.minute.into(),
+                dt.time.local.naive.second.into(),
+                dt.time.local.nanosecond()
             )
     }
 }
 
-impl From<::DateTime> for DateTime<Utc> {
-    fn from(dt: ::DateTime) -> Self {
+impl From<::DateTime<::Date, ::GlobalTime>> for DateTime<Utc> {
+    fn from(dt: ::DateTime<::Date, ::GlobalTime>) -> Self {
         DateTime::<FixedOffset>::from(dt)
             .with_timezone(&Utc)
     }
 }
 
-impl From<::DateTime> for DateTime<Local> {
-    fn from(dt: ::DateTime) -> Self {
+impl From<::DateTime<::Date, ::GlobalTime>> for DateTime<Local> {
+    fn from(dt: ::DateTime<::Date, ::GlobalTime>) -> Self {
         DateTime::<FixedOffset>::from(dt)
             .with_timezone(&Local)
     }
 }
 
-impl From<::DateTime<i16, ::LocalTime>> for DateTime<FixedOffset> {
-    fn from(dt: ::DateTime<i16, ::LocalTime>) -> Self {
+impl From<::DateTime<::Date, ::LocalTime>> for DateTime<FixedOffset> {
+    fn from(dt: ::DateTime<::Date, ::LocalTime>) -> Self {
         DateTime::<Local>::from(dt)
             .with_timezone(&Utc.fix())
     }
 }
 
-impl From<::DateTime<i16, ::LocalTime>> for DateTime<Utc> {
-    fn from(dt: ::DateTime<i16, ::LocalTime>) -> Self {
+impl From<::DateTime<::Date, ::LocalTime>> for DateTime<Utc> {
+    fn from(dt: ::DateTime<::Date, ::LocalTime>) -> Self {
         DateTime::<Local>::from(dt)
             .with_timezone(&Utc)
     }
 }
 
-impl From<::DateTime<i16, ::LocalTime>> for DateTime<Local> {
-    fn from(dt: ::DateTime<i16, ::LocalTime>) -> Self {
+impl From<::DateTime<::Date, ::LocalTime>> for DateTime<Local> {
+    fn from(dt: ::DateTime<::Date, ::LocalTime>) -> Self {
         let date: ::YmdDate = dt.date.into();
 
         Local.from_local_datetime(
@@ -60,42 +60,42 @@ impl From<::DateTime<i16, ::LocalTime>> for DateTime<Local> {
                 date.month.into(),
                 date.day.into()
             ).and_hms_nano(
-                dt.time.hour.into(),
-                dt.time.minute.into(),
-                dt.time.second.into(),
-                dt.time.nanos
+                dt.time.naive.hour.into(),
+                dt.time.naive.minute.into(),
+                dt.time.naive.second.into(),
+                dt.time.nanosecond()
             )
         ).single().unwrap()
     }
 }
 
-impl From<::DateTime<i16, ::AnyTime>> for DateTime<FixedOffset> {
-    fn from(dt: ::DateTime<i16, ::AnyTime>) -> Self {
+impl From<::DateTime<::Date, ::AnyTime>> for DateTime<FixedOffset> {
+    fn from(dt: ::DateTime<::Date, ::AnyTime>) -> Self {
         DateTime::<Local>::from(dt)
             .with_timezone(&Utc.fix())
     }
 }
 
-impl From<::DateTime<i16, ::AnyTime>> for DateTime<Utc> {
-    fn from(dt: ::DateTime<i16, ::AnyTime>) -> Self {
+impl From<::DateTime<::Date, ::AnyTime>> for DateTime<Utc> {
+    fn from(dt: ::DateTime<::Date, ::AnyTime>) -> Self {
         DateTime::<Local>::from(dt)
             .with_timezone(&Utc)
     }
 }
 
-impl From<::DateTime<i16, ::AnyTime>> for DateTime<Local> {
-    fn from(dt: ::DateTime<i16, ::AnyTime>) -> Self {
+impl From<::DateTime<::Date, ::AnyTime>> for DateTime<Local> {
+    fn from(dt: ::DateTime<::Date, ::AnyTime>) -> Self {
         match dt.time {
             ::AnyTime::Global(time) => {
                 ::DateTime {
                     date: dt.date,
-                    time: time
+                    time
                 }.into()
             }
             ::AnyTime::Local(time) => {
                 ::DateTime {
                     date: dt.date,
-                    time: time
+                    time
                 }.into()
             }
         }
@@ -120,10 +120,10 @@ pub mod serde {
     where
     	D: Deserializer<'de>,
     	Tz: TimeZone,
-    	DateTime<Tz>: From<::DateTime<i16, ::AnyTime>>
+    	DateTime<Tz>: From<::DateTime<::ApproxDate, ::ApproxAnyTime>>
     {
         Ok(
-            ::parse::datetime(String::deserialize(de)?.as_bytes())
+            ::parse::datetime_approx_any_approx(String::deserialize(de)?.as_bytes())
                 .map_err(serde::de::Error::custom)?.1
                 .into()
         )
