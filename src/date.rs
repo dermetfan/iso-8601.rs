@@ -195,10 +195,12 @@ macro_rules! impl_years {
         $mac!(i32);
         $mac!(i64);
         $mac!(i128);
+        $mac!(isize);
         $mac!(u16);
         $mac!(u32);
         $mac!(u64);
         $mac!(u128);
+        $mac!(usize);
     }
 }
 
