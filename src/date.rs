@@ -233,8 +233,7 @@ where Y: Year {
     }
 }
 
-impl<Y> From<Date<Y>> for YmdDate<Y>
-where
+impl<Y> From<Date<Y>> for YmdDate<Y> where
     Y: Year,
     ODate<Y>: From<WdDate<Y>>
 {
@@ -247,8 +246,7 @@ where
     }
 }
 
-impl<Y> From<Date<Y>> for WdDate<Y>
-where
+impl<Y> From<Date<Y>> for WdDate<Y> where
     Y: Year,
     WdDate<Y>: From<ODate<Y>>,
     ODate<Y>: From<WdDate<Y>>
@@ -262,8 +260,7 @@ where
     }
 }
 
-impl<Y> From<Date<Y>> for ODate<Y>
-where
+impl<Y> From<Date<Y>> for ODate<Y> where
     Y: Year,
     ODate<Y>: From<WdDate<Y>>
 {
@@ -314,8 +311,7 @@ where Y: Year {
     }
 }
 
-impl<Y> From<WdDate<Y>> for YmdDate<Y>
-where
+impl<Y> From<WdDate<Y>> for YmdDate<Y> where
     Y: Year,
     ODate<Y>: From<WdDate<Y>>
 {
@@ -363,8 +359,7 @@ where Y: Year {
     }
 }
 
-impl<Y> From<WdDate<Y>> for YmDate<Y>
-where
+impl<Y> From<WdDate<Y>> for YmDate<Y> where
     Y: Year,
     YmdDate<Y>: From<WdDate<Y>>
 {
@@ -380,8 +375,7 @@ where Y: Year {
     }
 }
 
-impl<Y> From<WdDate<Y>> for YDate<Y>
-where
+impl<Y> From<WdDate<Y>> for YDate<Y> where
     Y: Year,
     YmdDate<Y>: From<WdDate<Y>>
 {
@@ -399,8 +393,7 @@ where Y: Year {
     }
 }
 
-impl<Y> From<YmdDate<Y>> for WdDate<Y>
-where
+impl<Y> From<YmdDate<Y>> for WdDate<Y> where
     Y: Year,
     ODate<Y>: From<YmdDate<Y>>,
     ODate<Y>: From<WdDate<Y>>,

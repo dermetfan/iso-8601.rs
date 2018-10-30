@@ -36,8 +36,7 @@ impl_fromstr_parse!(DateTime<ApproxDate, ApproxGlobalTime>,    datetime_approx_g
 impl_fromstr_parse!(DateTime<ApproxDate, ApproxLocalTime>,     datetime_approx_local_approx);
 impl_fromstr_parse!(DateTime<ApproxDate, ApproxAnyTime>,       datetime_approx_any_approx);
 
-impl<D, T> Valid for DateTime<D, T>
-where
+impl<D, T> Valid for DateTime<D, T> where
     D: Datelike + Valid,
     T: Timelike + Valid
 {
