@@ -117,9 +117,9 @@ pub mod serde {
 
     #[allow(non_snake_case)]
     pub fn deserialize_DateTime<'de, D, Tz>(de: D) -> Result<DateTime<Tz>, D::Error> where
-    	D: Deserializer<'de>,
-    	Tz: TimeZone,
-    	DateTime<Tz>: From<::DateTime<::ApproxDate, ::ApproxAnyTime>>
+        D: Deserializer<'de>,
+        Tz: TimeZone,
+        DateTime<Tz>: From<::DateTime<::ApproxDate, ::ApproxAnyTime>>
     {
         Ok(
             ::parse::datetime_approx_any_approx(String::deserialize(de)?.as_bytes())
