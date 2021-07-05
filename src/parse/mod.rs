@@ -39,20 +39,23 @@ named!(frac32 <f32>, do_parse!(
 
 #[cfg(test)]
 mod tests {
-    use nom::{
-        Err::{
-            Error,
-            Incomplete
-        },
-        error::ErrorKind::Alt,
-        Needed::Size
+    use {
+        std::num::NonZeroUsize,
+        nom::{
+            Err,
+            error::{
+                Error,
+                ErrorKind::Alt
+            },
+            Needed::Size
+        }
     };
 
     #[test]
     fn sign() {
         assert_eq!(super::sign(b"-"), Ok((&[][..], -1)));
         assert_eq!(super::sign(b"+"), Ok((&[][..],  1)));
-        assert_eq!(super::sign(b"" ), Err(Incomplete(Size(1))));
-        assert_eq!(super::sign(b" "), Err(Error((&b" "[..], Alt))));
+        assert_eq!(super::sign(b"" ), Err(Err::Incomplete(Size(NonZeroUsize::new(1).unwrap()))));
+        assert_eq!(super::sign(b" "), Err(Err::Error(Error { input: &b" "[..], code: Alt })));
     }
 }

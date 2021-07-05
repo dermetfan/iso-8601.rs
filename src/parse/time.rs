@@ -151,8 +151,11 @@ named!(timezone <i16>, alt!(timezone_utc | timezone_fixed));
 mod tests {
     use super::*;
     use nom::{
-        Err::Error,
-        error::ErrorKind::Char
+        Err,
+        error::{
+            Error,
+            ErrorKind::Char
+        }
     };
 
     #[test]
@@ -189,7 +192,7 @@ mod tests {
     fn timezone_utc() {
         assert_eq!(super::timezone_utc(b"Z "), Ok((&b" "[..], 0)));
         assert_eq!(super::timezone_utc(b"Z"),  Ok((&[][..],   0)));
-        assert_eq!(super::timezone_utc(b"z"),  Err(Error((&b"z"[..], Char))));
+        assert_eq!(super::timezone_utc(b"z"),  Err(Err::Error(Error { input: &b"z"[..], code: Char })));
     }
 
     #[test]
