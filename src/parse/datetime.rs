@@ -41,6 +41,19 @@ datetime!(pub datetime_approx_global_approx, ApproxDate, date_approx, ApproxGlob
 datetime!(pub datetime_approx_local_approx,  ApproxDate, date_approx, ApproxLocalTime,     time_local_approx);
 datetime!(pub datetime_approx_any_approx,    ApproxDate, date_approx, ApproxAnyTime,       time_any_approx);
 
+named!(pub partial_datetime_approx_any_approx <PartialDateTime<ApproxDate, ApproxAnyTime>>, do_parse!(
+    date: opt!(flat_map!(re_bytes_match!("^(.+T.*|[^T:]*)$"), date_approx)) >>
+    opt!(complete!(char!('T'))) >>
+    opt!(complete!(peek!(not!(char!('T'))))) >>
+    time: opt!(time_any_approx) >>
+    (match (date, time) {
+        (None, None) => return Err(nom::Err::Incomplete(nom::Needed::Unknown)),
+        (Some(date), None) => PartialDateTime::Date(date),
+        (None, Some(time)) => PartialDateTime::Time(time),
+        (Some(date), Some(time)) => PartialDateTime::DateTime(DateTime { date, time }),
+    })
+));
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -49,5 +62,135 @@ mod tests {
     #[should_panic]
     fn tt() {
         datetime_approx_any_approx(b"2018-08-02TT22:01:39Z").unwrap();
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_date_y() {
+        assert_eq!(partial_datetime_approx_any_approx(b"2018"), Ok((&[][..], PartialDateTime::Date(ApproxDate::Y(YDate {
+            year: 2018,
+        })))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_date_ym_basic() {
+        assert_eq!(partial_datetime_approx_any_approx(b"201808"), Ok((&[][..], PartialDateTime::Date(ApproxDate::YM(YmDate {
+            year: 2018,
+            month: 8,
+        })))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_date_ym_extended() {
+        assert_eq!(partial_datetime_approx_any_approx(b"2018-08"), Ok((&[][..], PartialDateTime::Date(ApproxDate::YM(YmDate {
+            year: 2018,
+            month: 8,
+        })))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_date_ymd_basic() {
+        assert_eq!(partial_datetime_approx_any_approx(b"20180802"), Ok((&[][..], PartialDateTime::Date(ApproxDate::YMD(YmdDate {
+            year: 2018,
+            month: 8,
+            day: 2,
+        })))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_date_ymd_extended() {
+        assert_eq!(partial_datetime_approx_any_approx(b"2018-08-02"), Ok((&[][..], PartialDateTime::Date(ApproxDate::YMD(YmdDate {
+            year: 2018,
+            month: 8,
+            day: 2,
+        })))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_time_h() {
+        assert_eq!(partial_datetime_approx_any_approx(b"T12"), Ok((&[][..], PartialDateTime::Time(ApproxAnyTime::H(AnyTime::Local(LocalTime {
+            naive: HTime {
+                hour: 12,
+            },
+            fraction: 0.,
+        }))))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_time_hm_basic() {
+        assert_eq!(partial_datetime_approx_any_approx(b"T1230"), Ok((&[][..], PartialDateTime::Time(ApproxAnyTime::HM(AnyTime::Local(LocalTime {
+            naive: HmTime {
+                hour: 12,
+                minute: 30,
+            },
+            fraction: 0.,
+        }))))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_time_hm_extended() {
+        let result = PartialDateTime::Time(ApproxAnyTime::HM(AnyTime::Local(LocalTime {
+            naive: HmTime {
+                hour: 12,
+                minute: 30,
+            },
+            fraction: 0.,
+        })));
+
+        assert_eq!(partial_datetime_approx_any_approx(b"T12:30"), Ok((&[][..], result.clone())));
+        assert_eq!(partial_datetime_approx_any_approx(b"12:30"), Ok((&[][..], result.clone())));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_time_hms_basic() {
+        assert_eq!(partial_datetime_approx_any_approx(b"T123015"), Ok((&[][..], PartialDateTime::Time(ApproxAnyTime::HMS(AnyTime::Local(LocalTime {
+            naive: HmsTime {
+                hour: 12,
+                minute: 30,
+                second: 15,
+            },
+            fraction: 0.,
+        }))))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_time_hms_extended() {
+        let result = PartialDateTime::Time(ApproxAnyTime::HMS(AnyTime::Local(LocalTime {
+            naive: HmsTime {
+                hour: 12,
+                minute: 30,
+                second: 15,
+            },
+            fraction: 0.,
+        })));
+
+        assert_eq!(partial_datetime_approx_any_approx(b"T12:30:15"), Ok((&[][..], result.clone())));
+        assert_eq!(partial_datetime_approx_any_approx(b"12:30:15"), Ok((&[][..], result.clone())));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_time_hmsf_basic() {
+        assert_eq!(partial_datetime_approx_any_approx(b"T123015.2"), Ok((&[][..], PartialDateTime::Time(ApproxAnyTime::HMS(AnyTime::Local(LocalTime {
+            naive: HmsTime {
+                hour: 12,
+                minute: 30,
+                second: 15,
+            },
+            fraction: 0.2,
+        }))))));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_time_hmsf_extended() {
+        let result = PartialDateTime::Time(ApproxAnyTime::HMS(AnyTime::Local(LocalTime {
+            naive: HmsTime {
+                hour: 12,
+                minute: 30,
+                second: 15,
+            },
+            fraction: 0.2,
+        })));
+
+        assert_eq!(partial_datetime_approx_any_approx(b"T12:30:15.2"), Ok((&[][..], result.clone())));
+        assert_eq!(partial_datetime_approx_any_approx(b"12:30:15.2"), Ok((&[][..], result.clone())));
     }
 }

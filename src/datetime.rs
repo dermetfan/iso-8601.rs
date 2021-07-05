@@ -45,3 +45,13 @@ impl<D, T> Valid for DateTime<D, T> where
         self.time.is_valid()
     }
 }
+
+#[derive(PartialEq, Clone, Debug)]
+pub enum PartialDateTime<D = ApproxDate, T = ApproxAnyTime>
+where D: Datelike, T: Timelike {
+    Date(D),
+    Time(T),
+    DateTime(DateTime<D, T>)
+}
+
+impl_fromstr_parse!(PartialDateTime<ApproxDate, ApproxAnyTime>, partial_datetime_approx_any_approx);
