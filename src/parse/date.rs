@@ -123,11 +123,18 @@ named!(pub date_w <WDate>, alt!(
     date_w_basic
 ));
 
-named!(pub date_ym <YmDate>, do_parse!(
+named_args!(date_ym_format(extended: bool) <YmDate>, do_parse!(
     year: year >>
-    char!('-') >>
+    cond!(extended, char!('-')) >>
     month: month >>
     (YmDate { year, month })
+));
+named!(date_ym_basic    <YmDate>, call!(date_ym_format, false));
+named!(date_ym_extended <YmDate>, call!(date_ym_format, true));
+
+named!(pub date_ym <YmDate>, alt!(
+    date_ym_extended |
+    date_ym_basic
 ));
 
 named!(pub date_y <YDate>, map!(year, |year| YDate { year }));
@@ -223,6 +230,10 @@ mod tests {
     #[test]
     fn date_ym() {
         assert_eq!(super::date_ym(b"2016-02"), Ok((&[][..], YmDate {
+            year: 2016,
+            month: 2
+        })));
+        assert_eq!(super::date_ym(b"201602"), Ok((&[][..], YmDate {
             year: 2016,
             month: 2
         })));
