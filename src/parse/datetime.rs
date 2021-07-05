@@ -138,7 +138,7 @@ mod tests {
         })));
 
         assert_eq!(partial_datetime_approx_any_approx(b"T12:30"), Ok((&[][..], result.clone())));
-        assert_eq!(partial_datetime_approx_any_approx(b"12:30"), Ok((&[][..], result.clone())));
+        assert_eq!(partial_datetime_approx_any_approx(b"12:30"),  Ok((&[][..], result        )));
     }
 
     #[test]
@@ -165,7 +165,7 @@ mod tests {
         })));
 
         assert_eq!(partial_datetime_approx_any_approx(b"T12:30:15"), Ok((&[][..], result.clone())));
-        assert_eq!(partial_datetime_approx_any_approx(b"12:30:15"), Ok((&[][..], result.clone())));
+        assert_eq!(partial_datetime_approx_any_approx(b"12:30:15"),  Ok((&[][..], result        )));
     }
 
     #[test]
@@ -192,7 +192,7 @@ mod tests {
         })));
 
         assert_eq!(partial_datetime_approx_any_approx(b"T12:30:15.2"), Ok((&[][..], result.clone())));
-        assert_eq!(partial_datetime_approx_any_approx(b"12:30:15.2"), Ok((&[][..], result.clone())));
+        assert_eq!(partial_datetime_approx_any_approx(b"12:30:15.2"),  Ok((&[][..], result        )));
     }
 
     #[test]
