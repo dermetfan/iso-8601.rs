@@ -1,19 +1,19 @@
 use ::time::*;
 use super::*;
-use nom;
+use nom::character::is_digit;
 
 named!(hour <u8>, map!(
-    take_while_m_n!(2, 2, nom::is_digit),
+    take_while_m_n!(2, 2, is_digit),
     buf_to_int
 ));
 
 named!(minute <u8>, map!(
-    take_while_m_n!(2, 2, nom::is_digit),
+    take_while_m_n!(2, 2, is_digit),
     buf_to_int
 ));
 
 named!(second <u8>, map!(
-    take_while_m_n!(2, 2, nom::is_digit),
+    take_while_m_n!(2, 2, is_digit),
     buf_to_int
 ));
 
@@ -25,8 +25,8 @@ named_args!(time_hms_format(extended: bool) <HmsTime>, do_parse!(
     second: second >>
     (HmsTime { hour, minute, second })
 ));
-named!(time_hms_basic    <HmsTime>, apply!(time_hms_format, false));
-named!(time_hms_extended <HmsTime>, apply!(time_hms_format, true));
+named!(time_hms_basic    <HmsTime>, call!(time_hms_format, false));
+named!(time_hms_extended <HmsTime>, call!(time_hms_format, true));
 
 named!(pub time_hms <HmsTime>, alt!(
     time_hms_extended |
@@ -39,8 +39,8 @@ named_args!(time_hm_format(extended: bool) <HmTime>, do_parse!(
     minute: minute >>
     (HmTime { hour, minute })
 ));
-named!(time_hm_basic    <HmTime>, apply!(time_hm_format, false));
-named!(time_hm_extended <HmTime>, apply!(time_hm_format, true));
+named!(time_hm_basic    <HmTime>, call!(time_hm_format, false));
+named!(time_hm_extended <HmTime>, call!(time_hm_format, true));
 
 named!(pub time_hm <HmTime>, alt!(
     time_hm_extended |
@@ -49,10 +49,10 @@ named!(pub time_hm <HmTime>, alt!(
 
 named!(pub time_h <HTime>, map!(hour, |hour| HTime { hour }));
 
-named!(time_naive_approx <ApproxNaiveTime>, alt_complete!(
-    map!(time_hms, ApproxNaiveTime::HMS) |
-    map!(time_hm,  ApproxNaiveTime::HM) |
-    map!(time_h,   ApproxNaiveTime::H)
+named!(time_naive_approx <ApproxNaiveTime>, alt!(
+    complete!(map!(time_hms, ApproxNaiveTime::HMS)) |
+    complete!(map!(time_hm,  ApproxNaiveTime::HM)) |
+    complete!(map!(time_h,   ApproxNaiveTime::H))
 ));
 
 named!(pub time_local_approx <ApproxLocalTime>, do_parse!(
@@ -122,9 +122,9 @@ time_global_accuracy!(pub time_global_h,   HTime,   time_local_h);
 
 macro_rules! time_any_accuracy {
     (pub $name:ident, $naive:ty, $local_submac:ident, $global_submac:ident) => {
-        named!(pub $name <AnyTime<$naive>>, alt_complete!(
-            map!($global_submac, AnyTime::Global) |
-            map!($local_submac, AnyTime::Local)
+        named!(pub $name <AnyTime<$naive>>, alt!(
+            complete!(map!($global_submac, AnyTime::Global)) |
+            complete!(map!($local_submac, AnyTime::Local))
         ));
     }
 }
@@ -151,9 +151,8 @@ named!(timezone <i16>, alt!(timezone_utc | timezone_fixed));
 mod tests {
     use super::*;
     use nom::{
-        Context::Code,
         Err::Error,
-        ErrorKind::Char
+        error::ErrorKind::Char
     };
 
     #[test]
@@ -190,7 +189,7 @@ mod tests {
     fn timezone_utc() {
         assert_eq!(super::timezone_utc(b"Z "), Ok((&b" "[..], 0)));
         assert_eq!(super::timezone_utc(b"Z"),  Ok((&[][..],   0)));
-        assert_eq!(super::timezone_utc(b"z"),  Err(Error(Code(&b"z"[..], Char))));
+        assert_eq!(super::timezone_utc(b"z"),  Err(Error((&b"z"[..], Char))));
     }
 
     #[test]
