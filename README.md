@@ -2,7 +2,7 @@
 
 The go-to library for all your date and time parsing needs.
 
-An unimplemented edge case or notation the standard supports is considered a bug.
+Any unimplemented notation the standard supports is considered a bug.
 
 Chrono support is included.
 
