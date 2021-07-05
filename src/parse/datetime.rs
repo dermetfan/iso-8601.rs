@@ -42,7 +42,8 @@ datetime!(pub datetime_approx_local_approx,  ApproxDate, date_approx, ApproxLoca
 datetime!(pub datetime_approx_any_approx,    ApproxDate, date_approx, ApproxAnyTime,       time_any_approx);
 
 named!(pub partial_datetime_approx_any_approx <PartialDateTime<ApproxDate, ApproxAnyTime>>, do_parse!(
-    date: opt!(flat_map!(re_bytes_match!("^(.+T.*|[^T:]*)$"), date_approx)) >>
+    has_date: opt!(peek!(re_bytes_match!("^(.+T.*|[^T:]*)$"))) >>
+    date: cond!(has_date.is_some(), date_approx) >>
     opt!(complete!(char!('T'))) >>
     opt!(complete!(peek!(not!(char!('T'))))) >>
     time: opt!(time_any_approx) >>
@@ -192,5 +193,27 @@ mod tests {
 
         assert_eq!(partial_datetime_approx_any_approx(b"T12:30:15.2"), Ok((&[][..], result.clone())));
         assert_eq!(partial_datetime_approx_any_approx(b"12:30:15.2"), Ok((&[][..], result.clone())));
+    }
+
+    #[test]
+    fn partial_datetime_approx_any_approx_datetime_extended() {
+        let result = PartialDateTime::DateTime(DateTime {
+            date: ApproxDate::YMD(YmdDate {
+                year: 2018,
+                month: 8,
+                day: 2,
+            }),
+            time: ApproxAnyTime::HMS(AnyTime::Local(LocalTime {
+                naive: HmsTime {
+                    hour: 12,
+                    minute: 30,
+                    second: 15,
+                },
+                fraction: 0.2,
+            }))
+        });
+
+        assert_eq!(partial_datetime_approx_any_approx(b"2018-08-02T12:30:15.2"), Ok((&[][..], result.clone())));
+        assert_eq!(partial_datetime_approx_any_approx(b"20180802T123015.2"),     Ok((&[][..], result        )));
     }
 }

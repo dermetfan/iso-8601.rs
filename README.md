@@ -53,6 +53,45 @@ assert_eq!(
         fraction: 0.,
     }
 );
+
+// Parse any date, time, or datetime expression without knowing what it is:
+
+assert_eq!(
+    PartialDateTime::from_str("12:30").unwrap(),
+    PartialDateTime::Time(ApproxAnyTime::HM(AnyTime::Local(LocalTime {
+        naive: HmTime {
+            hour: 12,
+            minute: 30,
+        },
+        fraction: 0.,
+    })))
+);
+
+assert_eq!(
+    PartialDateTime::from_str("2018-08").unwrap(),
+    PartialDateTime::Date(ApproxDate::YM(YmDate {
+        year: 2018,
+        month: 8,
+    }))
+);
+
+assert_eq!(
+    PartialDateTime::from_str("20180802T1230").unwrap(),
+    PartialDateTime::DateTime(DateTime {
+        date: ApproxDate::YMD(YmdDate {
+            year: 2018,
+            month: 8,
+            day: 2,
+        }),
+        time: ApproxAnyTime::HM(AnyTime::Local(LocalTime {
+            naive: HmTime {
+                hour: 12,
+                minute: 30,
+            },
+            fraction: 0.,
+        }))
+    })
+);
 ```
 
 Chrono support:
